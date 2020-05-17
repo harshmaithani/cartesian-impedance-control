@@ -1,0 +1,554 @@
+/*
+* Harsh Maithani
+* Insitut Pascal
+* SIGMA Clermont 
+*/
+
+#include <group_command_controller_fri.h>
+
+// For plugin
+#include <pluginlib/class_list_macros.h>
+
+#include <algorithm>
+
+#include "ros/ros.h"
+
+#include "std_msgs/String.h"
+
+#include "geometry_msgs/Wrench.h"
+#include "geometry_msgs/Vector3.h"
+
+#include <sstream>
+
+#include "std_msgs/Float64MultiArray.h"
+
+#include <sensor_msgs/JointState.h>  //For reading the Joint States
+#include <std_msgs/Float64.h>
+
+// Ros messages generated
+#include <kuka_lwr_controllers/PoseRPY.h>
+
+#include "geometry_msgs/WrenchStamped.h"
+
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+#include <math.h>
+#include <vector>
+#include <iostream>
+#include <fstream>
+
+float Fx,Fy,Fz,Tx,Ty,Tz;  // Reading forces from Force Sensor
+
+float Fx_filtered,Fy_filtered,Fz_filtered,Tx_filtered,Ty_filtered,Tz_filtered;
+
+double A1,A2,A3,E1,A4,A5,A6;
+double temp_A1,temp_A2,temp_A3,temp_E1,temp_A4,temp_A5,temp_A6;
+
+float F_x=1.0;    float F_y=1.0;   float F_z=1.0; 
+float M_x=1;      float M_y=50;    float M_z=50;   
+float B_x=1;      float B_y=100;   float B_z=10000;
+float K_x=1;      float K_y=100;   float K_z=100;
+
+float x=0;	float x_0=0;
+float y=0;	float y_0=0;
+float z=0;	float z_0=0;
+
+float x_init = 0;
+float y_init = 0;
+float z_init = 0;
+
+float x_theoretical  =0;
+float y_theoretical  =0;
+float z_theoretical  =0;
+
+float x_cmd = 0;
+float y_cmd = 0;
+float z_cmd = 0;
+
+float v_x=0;	float v_x_0=0;
+float v_y=0;	float v_y_0=0;
+float v_z=0;	float v_z_0=0;
+
+float v_x_theoretical =0;
+float v_y_theoretical =0;
+float v_z_theoretical =0;
+
+float v_x_cmd = 0;
+float v_y_cmd = 0;
+float v_z_cmd = 0;
+
+float a_x=0;
+float a_y=0;
+float a_z=0;
+
+float a_x_theoretical =0;
+float a_y_theoretical =0;
+float a_z_theoretical =0;
+
+float a_x_cmd = 0;
+float a_y_cmd = 0;
+float a_z_cmd = 0;
+
+float upper_lim=0.01;
+float lower_lim=-0.01;
+
+float acc_upper_limit=2;
+float acc_lower_limit=-2;
+
+float vel_upper_limit=1;
+float vel_lower_limit=-1;
+
+float displacement_upper_limit=10;
+float displacement_lower_limit=-10;
+
+double acceleration[]={0,0,0,0,0,0};
+double velocity[]={0,0,0,0,0,0};
+double q_init[6];
+float dt=0.001;
+int tracker=1;
+int init_counter=1;
+
+kuka_lwr_controllers::PoseRPY current_pose_rpy;
+kuka_lwr_controllers::PoseRPY commanded_pose;
+std_msgs::Float64MultiArray acc_cmd_;
+std_msgs::Float64MultiArray acc_theoretical_;
+std_msgs::Float64MultiArray acc_actual_;
+
+std_msgs::Float64MultiArray vel_cmd_;
+std_msgs::Float64MultiArray vel_theoretical_;
+std_msgs::Float64MultiArray current_vel_;
+std_msgs::Float64MultiArray previous_vel_;
+
+std_msgs::Float64MultiArray position_cmd_;
+std_msgs::Float64MultiArray position_theoretical_;
+
+std_msgs::Float64MultiArray filtered_forces_;
+std_msgs::Float64MultiArray commanded_forces_;
+
+std_msgs::Float64MultiArray adm_mass_;
+std_msgs::Float64MultiArray adm_stiffness_;
+std_msgs::Float64MultiArray adm_damping_;
+std_msgs::Float64MultiArray adm_timesteps_;
+
+//-2.6797474604518032
+
+
+void jointCallback(const std_msgs::Float64MultiArray::ConstPtr &msg)
+{
+	//if (tracker==1)
+	//{
+	current_pose_rpy.position.x         = msg->data[0];
+	current_pose_rpy.position.y         = msg->data[1];
+	current_pose_rpy.position.z         = msg->data[2];
+	current_pose_rpy.orientation.pitch  = msg->data[3];
+	current_pose_rpy.orientation.roll   = msg->data[4];
+	current_pose_rpy.orientation.yaw    = msg->data[5];
+	tracker++;
+	//}
+	
+	if (init_counter==100)
+	{
+        x_init = msg->data[0];
+	y_init = msg->data[1];
+	z_init = msg->data[2];
+        }
+        init_counter = init_counter+1;
+}
+
+void wrenchCallback(const geometry_msgs::WrenchStamped::ConstPtr& wrench1)
+{
+ROS_INFO("I heard the force as %f %f %f",wrench1->wrench.force.x,wrench1->wrench.force.y,wrench1->wrench.force.z);
+ROS_INFO("I heard the torque as %f %f %f",wrench1->wrench.torque.x,wrench1->wrench.torque.y,wrench1->wrench.torque.z);
+	Fx=wrench1->wrench.force.x;
+	Fy=wrench1->wrench.force.y;
+	Fz=wrench1->wrench.force.z;
+	Tx=wrench1->wrench.torque.x;
+	Ty=wrench1->wrench.torque.y;
+	Tz=wrench1->wrench.torque.z;
+
+}
+
+void velocityCallback(const std_msgs::Float64MultiArray::ConstPtr &msg)
+{	
+	current_vel_.data[0]                = msg->data[0];
+	current_vel_.data[1]                = msg->data[1];
+	current_vel_.data[2]                = msg->data[2];
+	current_vel_.data[3]                = msg->data[3];
+	current_vel_.data[4]                = msg->data[4];
+	current_vel_.data[5]                = msg->data[5];
+	tracker++;
+}
+
+void forcesCallback(const std_msgs::Float64MultiArray::ConstPtr &msg)
+{	
+        commanded_forces_.data[0]          = msg->data[0];	
+}
+
+
+ std::vector<float> meanFilterFT(std::vector<std::vector<float> > vectoravgfx)
+ {
+	 std::vector<float> force;
+	 force.resize(6);
+	 for(int i=0; i < force.size(); i++ )
+	 {
+		force[i]= 0.0;
+		for(int j=0; j < vectoravgfx.size(); j++ )
+		{
+			force[i]+= vectoravgfx[j][i];
+		}
+		force[i]/= vectoravgfx.size();
+	 }
+	 return force;
+ }
+
+int main(int argc, char **argv)
+{
+	
+  ros::init(argc, argv, "admittance_node");
+
+  ros::NodeHandle n;
+
+  // Subscribers
+  ros::Subscriber current_joint_position_sub = n.subscribe("/cart_adm_kdl_pose_meters_rpy_rad",1000, jointCallback);    // Current Pose 
+  ros::Subscriber wrench_sub = n.subscribe("/sensor_readings",1000,wrenchCallback); 	                                // Current Forces
+  ros::Subscriber vel_sub    = n.subscribe("/cart_adm_kdl_cart_velocity_m_rad",1000,velocityCallback); 	                // Current Velocity
+  ros::Subscriber commanded_forces_sub = n.subscribe("/commanded_forces",1000,forcesCallback); 	                        // Commanded Forces
+  
+  // Publishers 
+  ros::Publisher joint_position_pub = n.advertise<kuka_lwr_controllers::PoseRPY>("/kuka_lwr_right/harsh_admittance_controller/command",1000);	
+ 
+  ros::Publisher acc_cmd_pub = n.advertise<std_msgs::Float64MultiArray>("/adm_acc_cmd",1000);
+  ros::Publisher acc_theoretical_pub = n.advertise<std_msgs::Float64MultiArray>("/adm_acc_theoretical",1000);
+  ros::Publisher acc_actual_pub = n.advertise<std_msgs::Float64MultiArray>("/adm_acc_actual",1000);
+  
+  ros::Publisher vel_cmd_pub = n.advertise<std_msgs::Float64MultiArray>("/adm_vel_cmd",1000);
+  ros::Publisher vel_theoretical_pub = n.advertise<std_msgs::Float64MultiArray>("/adm_vel_theoretical",1000);
+
+  ros::Publisher position_cmd_pub = n.advertise<std_msgs::Float64MultiArray>("/adm_position_cmd",1000);
+  ros::Publisher position_theoretical_pub = n.advertise<std_msgs::Float64MultiArray>("/adm_position_theoretical",1000);
+ 
+  ros::Publisher filtered_forces_pub = n.advertise<std_msgs::Float64MultiArray>("/adm_filtered_forces",1000);   
+
+  ros::Publisher adm_mass_pub      = n.advertise<std_msgs::Float64MultiArray>("/adm_mass",1000);  
+  ros::Publisher adm_stiffness_pub = n.advertise<std_msgs::Float64MultiArray>("/adm_stiffness",1000);  
+  ros::Publisher adm_damping_pub   = n.advertise<std_msgs::Float64MultiArray>("/adm_damping",1000);  
+  ros::Publisher adm_timesteps_pub = n.advertise<std_msgs::Float64MultiArray>("/adm_timesteps",1000); 
+  
+  ros::Rate loop_rate(1000);
+
+  // Initialization of Force vector for mean filter
+	float avgfx=0.0;
+	int timesteps=1; // Default window size of filter
+		
+	std::vector<std::vector<float> > vectoravgfx;
+	std::vector<float>filtered_forces;
+	for (int i=0; i < timesteps; i++)
+	{	
+		std::vector<float> force;
+		force.push_back(Fx); force.push_back(Fy);force.push_back(Fz); force.push_back(Tx); force.push_back(Ty); force.push_back(Tz);
+		vectoravgfx.push_back(force);
+	} 
+
+  int count = 0;
+  int counterForceVector= 0;
+
+  acc_cmd_.data.resize(3);
+  acc_theoretical_.data.resize(3);
+  acc_actual_.data.resize(3);
+
+  vel_cmd_.data.resize(3);
+  vel_theoretical_.data.resize(3);
+
+  position_cmd_.data.resize(3);
+  position_theoretical_.data.resize(3);
+
+  filtered_forces_.data.resize(3);
+  commanded_forces_.data.resize(1);   
+
+  current_vel_.data.resize(6);
+  previous_vel_.data.resize(3);
+
+  adm_mass_.data.resize(3);
+  adm_stiffness_.data.resize(3);
+  adm_damping_.data.resize(3);
+  adm_timesteps_.data.resize(1);
+
+  commanded_pose.position.x=x_init;
+  commanded_pose.position.y=y_init;
+  commanded_pose.position.z=z_init;
+  /*
+  commanded_pose.position.x=0.078;
+  commanded_pose.position.y=0.007;
+  commanded_pose.position.z=0.868;
+  */
+
+  commanded_pose.orientation.roll   =  2.1096;
+  commanded_pose.orientation.pitch  =  1.5706;
+  commanded_pose.orientation.yaw    =  2.1097;
+
+  commanded_forces_.data[0]=0;
+
+  while (ros::ok())
+  {
+   
+   //!Reading the sensor values from FT
+	
+  	vectoravgfx[counterForceVector][0]=Fx;
+	vectoravgfx[counterForceVector][1]=Fy;
+	vectoravgfx[counterForceVector][2]=Fz;
+	vectoravgfx[counterForceVector][3]=Tx;
+	vectoravgfx[counterForceVector][4]=Ty;
+	vectoravgfx[counterForceVector][5]=Tz;
+	
+	counterForceVector=(counterForceVector++)%timesteps;
+	filtered_forces= meanFilterFT(vectoravgfx);
+  
+   Fx_filtered=filtered_forces[0];
+   Fy_filtered=filtered_forces[1];
+   Fz_filtered=filtered_forces[2];
+   Tx_filtered=filtered_forces[3];
+   Ty_filtered=filtered_forces[4];
+   Tz_filtered=filtered_forces[5];
+   
+   //Changing direction of Forces from Sensor Frame to Global Frame
+   
+   // To apply Moving Average Filter 
+   /*  
+   F_z  = -Fx_filtered;
+   F_y  = Fy_filtered;
+   F_x  = Fz_filtered;
+   */
+   
+  // For MPC
+  
+  F_z  = -Fx_filtered + commanded_forces_.data[0];
+  F_x  = 0;
+  F_y  = Fy_filtered;
+  
+ 
+   // Calculations 
+   // Mxdd+Bxd+Kx=F	
+   
+   // Spring - *****************************
+   //z_theoretical=(F_z/K_z);
+   
+
+   // To avoid joint velocity limits
+   /*
+   if (z_theoretical > displacement_upper_limit)
+   {
+   z_theoretical=displacement_upper_limit;
+   }
+
+   if (z_theoretical < displacement_lower_limit)
+   {
+   z_theoretical=displacement_lower_limit;
+   }
+   */
+  
+   // Damper  - ***********************
+   /*
+   v_z_theoretical = (F_z / B_z);
+   // z = v_z*dt;
+   // z = v_z*2.5;
+   v_z_cmd = v_z_theoretical;    
+   z_theoretical= v_z_cmd;
+
+   v_y_theoretical = (F_y / B_y);
+   v_y_cmd = v_y_theoretical; 
+   y_theoretical = v_y_cmd;
+   */
+ 
+   // Inertial - ************************
+   /*
+   a_z_theoretical = (F_z / M_z);
+   if ((F_z > 0) && (F_z < upper_lim))
+    {
+    a_z_theoretical=0;
+    v_z_theoretical=0;
+    }   
+    if ((F_z < 0) && (F_z > lower_lim))
+    {
+    a_z_theoretical=0;
+    v_z_theoretical=0;
+    }	
+
+   v_z_theoretical = v_z_theoretical + a_z_theoretical*dt;
+   v_z_cmd         = v_z_theoretical; 
+   z_theoretical   = v_z_cmd;
+
+   //v_z_theoretical = v_z_theoretical + a_z_theoretical*dt;
+   //z_theoretical   = v_z_theoretical*dt; 
+   */
+
+   // Mass-Spring-Damper Mxdd+Bxd+Kx=F ********************
+   // Global z-axis 
+   a_z_theoretical = ((F_z -B_z*v_z_theoretical) / M_z);
+   if ((F_z > 0) && (F_z < upper_lim))
+    {
+    a_z_theoretical=0;
+    v_z_theoretical=0;
+    }   
+    if ((F_z < 0) && (F_z > lower_lim))
+    {
+    a_z_theoretical=0;
+    v_z_theoretical=0;
+    }	
+   v_z_theoretical = v_z_theoretical + a_z_theoretical*dt;
+   v_z_cmd         = v_z_theoretical; 
+   z_theoretical   = v_z_cmd;
+   
+   // Global y-axis
+   a_y_theoretical = ((F_y -B_y*v_y_theoretical) / M_y);
+   if ((F_y > 0) && (F_y < upper_lim))
+    {
+    a_y_theoretical=0;
+    v_y_theoretical=0;
+    }   
+    if ((F_y < 0) && (F_y > lower_lim))
+    {
+    a_y_theoretical=0;
+    v_y_theoretical=0;
+    }	
+   v_y_theoretical = v_y_theoretical + a_y_theoretical*dt;
+   v_y_cmd         = v_y_theoretical; 
+   y_theoretical   = v_y_cmd;
+
+
+  //***********************************
+
+   if ((F_z > 0) && (F_z < upper_lim))
+    {
+    a_z_cmd=0;
+    v_z_cmd=0;
+    z_cmd=0;
+    }
+	   
+    if ((F_z < 0) && (F_z > lower_lim))
+    {
+    a_z_cmd=0;
+    v_z_cmd=0;
+    z_cmd=0;
+    }	
+
+   if ((F_y > 0) && (F_y < upper_lim))
+    {
+    a_y_cmd=0;
+    v_y_cmd=0;
+    y_cmd=0;
+    }
+	   
+    if ((F_y < 0) && (F_y > lower_lim))
+    {
+    a_y_cmd=0;
+    v_y_cmd=0;
+    y_cmd=0;
+    }
+    
+   x_cmd = x_init;
+
+   //x_cmd = 0.078;
+   y_cmd = y_theoretical*2.5;
+   z_cmd = z_theoretical*2.5;
+   
+   //Publishers
+
+  adm_mass_.data[0] = M_x;
+  adm_mass_.data[1] = M_y;
+  adm_mass_.data[2] = M_z;
+  
+  adm_stiffness_.data[0] = K_x;
+  adm_stiffness_.data[1] = K_y;
+  adm_stiffness_.data[2] = K_z;
+
+  adm_damping_.data[0]   = B_x;
+  adm_damping_.data[1]   = B_y;
+  adm_damping_.data[2]   = B_z;
+  
+  adm_timesteps_.data[0] = timesteps;
+
+  filtered_forces_.data[0]= F_x;
+  filtered_forces_.data[1]= F_y;
+  filtered_forces_.data[2]= F_z;
+
+  acc_theoretical_.data[0] = a_x_theoretical;
+  acc_theoretical_.data[1] = a_y_theoretical;
+  acc_theoretical_.data[2] = a_z_theoretical;
+
+  acc_cmd_.data[0] = a_x_cmd;
+  acc_cmd_.data[1] = a_y_cmd;
+  acc_cmd_.data[2] = a_z_cmd;
+
+  acc_actual_.data[0] = 0;
+  acc_actual_.data[1] = 0;
+  acc_actual_.data[2] = (current_vel_.data[2] - previous_vel_.data[2])/dt;
+
+  vel_theoretical_.data[0] = v_x_theoretical;
+  vel_theoretical_.data[1] = v_y_theoretical;
+  vel_theoretical_.data[2] = v_z_theoretical;  
+
+  previous_vel_.data[0] = current_vel_.data[0];
+  previous_vel_.data[1] = current_vel_.data[1];
+  previous_vel_.data[2] = current_vel_.data[2]; 
+
+  vel_cmd_.data[0] = v_x_cmd;
+  vel_cmd_.data[1] = v_y_cmd;
+  vel_cmd_.data[2] = v_z_cmd;
+
+  position_theoretical_.data[0] = x_cmd;  
+  position_theoretical_.data[1] = current_pose_rpy.position.y + y_theoretical;  
+  position_theoretical_.data[2] = current_pose_rpy.position.z + z_theoretical; 
+//position_theoretical_.data[2] = z_theoretical; 
+
+  position_cmd_.data[0] = x_cmd;
+  position_cmd_.data[1] = current_pose_rpy.position.y + y_cmd;
+  position_cmd_.data[2] = current_pose_rpy.position.z + z_cmd;
+
+   commanded_pose.position.x=x_cmd;
+   commanded_pose.position.y=current_pose_rpy.position.y + y_cmd;
+   commanded_pose.position.z=current_pose_rpy.position.z + z_cmd;  //Active Following
+//   commanded_pose.position.z=0.868;
+//   commanded_pose.position.z=0.868 + z;     
+
+   commanded_pose.orientation.roll   =  2.1096;
+   commanded_pose.orientation.pitch  =  1.5706;
+   commanded_pose.orientation.yaw    =  2.1097;  
+
+   //commanded_pose.orientation.roll=current_joint_positions.orientation.roll;
+   //commanded_pose.orientation.pitch=current_joint_positions.orientation.pitch;
+   //commanded_pose.orientation.yaw=current_joint_positions.orientation.yaw;
+   
+   ROS_INFO("Force applied: %f %f %f",F_x,F_y,F_z);
+   ROS_INFO("Commanded x: %f y: % f z: %f",commanded_pose.position.x,commanded_pose.position.y,commanded_pose.position.z);
+   ROS_INFO("Acceleration: %f, Velocity : %f, Position: %f",acc_cmd_.data[2],vel_cmd_.data[2],position_theoretical_.data[2]);	
+	
+   if (init_counter > 100)
+   {
+   joint_position_pub.publish(commanded_pose);
+   acc_cmd_pub.publish(acc_cmd_); 
+   acc_theoretical_pub.publish(acc_theoretical_);
+   acc_actual_pub.publish(acc_actual_);
+   vel_cmd_pub.publish(vel_cmd_);
+   vel_theoretical_pub.publish(vel_theoretical_);
+    
+   position_cmd_pub.publish(position_cmd_);
+   position_theoretical_pub.publish(position_theoretical_);
+   filtered_forces_pub.publish(filtered_forces_);
+   
+   adm_mass_pub.publish(adm_mass_);  
+   adm_stiffness_pub.publish(adm_stiffness_);
+   adm_damping_pub.publish(adm_damping_);  
+   adm_timesteps_pub.publish(adm_timesteps_);
+   }
+	
+   ros::spinOnce();
+
+   loop_rate.sleep();
+
+    //++count;
+  }
+
+  return 0;
+}
+

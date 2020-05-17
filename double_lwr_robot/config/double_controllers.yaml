@@ -1,0 +1,252 @@
+kuka_lwr_left:
+
+  # THIS CONFIGURATION IS ACTUALLY SENDING TAU = K*Q
+  joint_trajectory_controller:
+    type: position_controllers/JointTrajectoryController
+    joints: 
+      - kuka_lwr_left_0_joint
+      - kuka_lwr_left_1_joint
+      - kuka_lwr_left_2_joint
+      - kuka_lwr_left_3_joint
+      - kuka_lwr_left_4_joint
+      - kuka_lwr_left_5_joint
+      - kuka_lwr_left_6_joint
+
+  # CONTROLLERS USED IN THE EXAMLE
+  joint_state_controller:
+    type: joint_state_controller/JointStateController
+    publish_rate: 100
+
+  # Group Command Controller
+  kuka_group_command_controller:
+    type: kuka_lwr_controllers/GroupCommandController
+    root_name: kuka_lwr_left_base_link
+    tip_name: kuka_lwr_left_7_link
+    
+  # Group Command Controller FRI
+  kuka_group_command_controller_fri:
+    type: kuka_lwr_controllers/GroupCommandControllerFRI
+    root_name: kuka_lwr_left_base_link
+    tip_name: kuka_lwr_left_7_link
+    
+  # Gravity Compensation Controller  
+  kuka_gravity_compensation_controller:
+     type: kuka_lwr_controllers/GravityCompensationController
+     root_name: kuka_lwr_left_base_link
+     tip_name: kuka_lwr_left_7_link
+     
+  # Simple Cartesian Impedance Controller  
+  kuka_simple_cartesian_impedance_controller:
+     type: kuka_lwr_controllers/SimpleCartesianImpedanceController
+     root_name: kuka_lwr_left_base_link
+     tip_name: kuka_lwr_left_7_link
+     
+  # Torque Based Position Controller  
+  torque_based_position_controller:
+     type: kuka_lwr_controllers/TorqueBasedPositionController
+     root_name: kuka_lwr_left_base_link
+     tip_name: kuka_lwr_left_7_link  
+     
+  # Torque Based Position Controller Gazebo 
+  torque_based_position_controller_gazebo:
+     type: kuka_lwr_controllers/TorqueBasedPositionControllerGazebo
+     root_name: kuka_lwr_left_base_link
+     tip_name: kuka_lwr_left_7_link   
+
+  # One Task Inverse Kinematics
+  kuka_one_task_inverse_kinematics:
+    type: kuka_lwr_controllers/OneTaskInverseKinematics
+    root_name: kuka_lwr_left_base_link
+    tip_name: kuka_lwr_left_7_link
+
+  # One Task Inverse Kinematics FRI
+  kuka_one_task_inverse_kinematics_fri:
+    type: kuka_lwr_controllers/OneTaskInverseKinematicsFRI
+    root_name: kuka_lwr_left_base_link
+    tip_name: kuka_lwr_left_7_link
+    
+  # Cartesian Velocity Control
+  cartesian_velocity_control:
+    type: kuka_lwr_controllers/CartesianVelocityControl
+    root_name: kuka_lwr_left_base_link
+    tip_name: kuka_lwr_left_7_link
+
+  # Computed Torque Controller
+  computed_torque_controller:
+    type: kuka_lwr_controllers/ComputedTorqueController
+    root_name: kuka_lwr_left_base_link
+    tip_name: kuka_lwr_left_7_link
+
+  # Cartesian Computed Torque Controller
+  cartesian_computed_torque_controller:
+    type: kuka_lwr_controllers/CartesianComputedTorqueController
+    root_name: kuka_lwr_left_base_link
+    tip_name: kuka_lwr_left_7_link
+    
+  # Basic Torque Controller
+  basic_torque_controller:
+    type: kuka_lwr_controllers/BasicTorqueController
+    root_name: kuka_lwr_left_base_link
+    tip_name: kuka_lwr_left_7_link
+    
+  # Operational Space Controller
+  operational_space_controller:
+    type: kuka_lwr_controllers/OperationalSpaceController
+    root_name: kuka_lwr_left_base_link
+    tip_name: kuka_lwr_left_7_link
+    
+  # Harsh Cartesian Impedance Controller
+  harsh_cartesian_impedance_controller:
+    type: kuka_lwr_controllers/HarshCartesianImpedanceController
+    root_name: kuka_lwr_left_base_link
+    tip_name: kuka_lwr_left_7_link
+    
+  # Harsh Admittance Controller
+  harsh_admittance_controller:
+    type: kuka_lwr_controllers/HarshAdmittanceController
+    root_name: kuka_lwr_left_base_link
+    tip_name: kuka_lwr_left_7_link
+   
+  # Harsh Trust Impedance Controller
+  harsh_trust_impedance_controller:
+    type: kuka_lwr_controllers/HarshTrustImpedanceController
+    root_name: kuka_lwr_left_base_link
+    tip_name: kuka_lwr_left_7_link 
+    
+  # Harsh Admittance Controller FRI
+  harsh_admittance_controller_fri:
+    type: kuka_lwr_controllers/HarshAdmittanceControllerFRI
+    root_name: kuka_lwr_left_base_link
+    tip_name: kuka_lwr_left_7_link
+
+  # Harsh Admittance Controller ROS
+  harsh_admittance_controller_ros:
+    type: kuka_lwr_controllers/HarshAdmittanceControllerROS
+    root_name: kuka_lwr_left_base_link
+    tip_name: kuka_lwr_left_7_link
+kuka_lwr_right:
+
+  # THIS CONFIGURATION IS ACTUALLY SENDING TAU = K*Q
+  joint_trajectory_controller:
+    type: position_controllers/JointTrajectoryController
+    joints: 
+      - kuka_lwr_right_0_joint
+      - kuka_lwr_right_1_joint
+      - kuka_lwr_right_2_joint
+      - kuka_lwr_right_3_joint
+      - kuka_lwr_right_4_joint
+      - kuka_lwr_right_5_joint
+      - kuka_lwr_right_6_joint
+
+  # CONTROLLERS USED IN THE EXAMLE
+  joint_state_controller:
+    type: joint_state_controller/JointStateController
+    publish_rate: 100
+
+  # Group Command Controller
+  kuka_group_command_controller:
+    type: kuka_lwr_controllers/GroupCommandController
+    root_name: kuka_lwr_right_base_link
+    tip_name: kuka_lwr_right_7_link
+    
+  # Group Command Controller FRI
+  kuka_group_command_controller_fri:
+    type: kuka_lwr_controllers/GroupCommandControllerFRI
+    root_name: kuka_lwr_right_base_link
+    tip_name: kuka_lwr_right_7_link
+    
+  # Gravity Compensation Controller  
+  kuka_gravity_compensation_controller:
+     type: kuka_lwr_controllers/GravityCompensationController
+     root_name: kuka_lwr_right_base_link
+     tip_name: kuka_lwr_right_7_link
+     
+  # Simple Cartesian Impedance Controller  
+  kuka_simple_cartesian_impedance_controller:
+     type: kuka_lwr_controllers/SimpleCartesianImpedanceController
+     root_name: kuka_lwr_right_base_link
+     tip_name: kuka_lwr_right_7_link
+     
+  # Torque Based Position Controller  
+  torque_based_position_controller:
+     type: kuka_lwr_controllers/TorqueBasedPositionController
+     root_name: kuka_lwr_right_base_link
+     tip_name: kuka_lwr_right_7_link
+     
+  # Torque Based Position Controller Gazebo
+  torque_based_position_controller_gazebo:
+     type: kuka_lwr_controllers/TorqueBasedPositionControllerGazebo
+     root_name: kuka_lwr_right_base_link
+     tip_name: kuka_lwr_right_7_link
+
+  # One Task Inverse Kinematics
+  kuka_one_task_inverse_kinematics:
+    type: kuka_lwr_controllers/OneTaskInverseKinematics
+    root_name: kuka_lwr_right_base_link
+    tip_name: kuka_lwr_right_7_link
+
+  # One Task Inverse Kinematics FRI
+  kuka_one_task_inverse_kinematics_fri:
+    type: kuka_lwr_controllers/OneTaskInverseKinematicsFRI
+    root_name: kuka_lwr_right_base_link
+    tip_name: kuka_lwr_right_7_link
+    
+  # Cartesian Velocity Control
+  cartesian_velocity_control:
+    type: kuka_lwr_controllers/CartesianVelocityControl
+    root_name: kuka_lwr_right_base_link
+    tip_name: kuka_lwr_right_7_link
+
+  # Computed Torque Controller
+  computed_torque_controller:
+    type: kuka_lwr_controllers/ComputedTorqueController
+    root_name: kuka_lwr_right_base_link
+    tip_name: kuka_lwr_right_7_link
+
+  # Cartesian Computed Torque Controller
+  cartesian_computed_torque_controller:
+    type: kuka_lwr_controllers/CartesianComputedTorqueController
+    root_name: kuka_lwr_right_base_link
+    tip_name: kuka_lwr_right_7_link
+    
+  # Basic Torque Controller
+  basic_torque_controller:
+    type: kuka_lwr_controllers/BasicTorqueController
+    root_name: kuka_lwr_right_base_link
+    tip_name: kuka_lwr_right_7_link
+    
+  # Operational Space Controller
+  operational_space_controller:
+    type: kuka_lwr_controllers/OperationalSpaceController
+    root_name: kuka_lwr_right_base_link
+    tip_name: kuka_lwr_right_7_link
+
+  # Harsh Cartesian Impedance Controller
+  harsh_cartesian_impedance_controller:
+    type: kuka_lwr_controllers/HarshCartesianImpedanceController
+    root_name: kuka_lwr_right_base_link
+    tip_name: kuka_lwr_right_7_link
+    
+  # Harsh Admittance Controller
+  harsh_admittance_controller:
+    type: kuka_lwr_controllers/HarshAdmittanceController
+    root_name: kuka_lwr_right_base_link
+    tip_name: kuka_lwr_right_7_link
+
+  # Harsh Trust Impedance Controller
+  harsh_trust_impedance_controller:
+    type: kuka_lwr_controllers/HarshTrustImpedanceController
+    root_name: kuka_lwr_right_base_link
+    tip_name: kuka_lwr_right_7_link
+
+  # Harsh Admittance Controller
+  harsh_admittance_controller_fri:
+    type: kuka_lwr_controllers/HarshAdmittanceControllerFRI
+    root_name: kuka_lwr_right_base_link
+    tip_name: kuka_lwr_right_7_link
+
+  # Harsh Admittance Controller ROS
+  harsh_admittance_controller_ros:
+    type: kuka_lwr_controllers/HarshAdmittanceControllerROS
+    root_name: kuka_lwr_right_base_link
+    tip_name: kuka_lwr_right_7_link

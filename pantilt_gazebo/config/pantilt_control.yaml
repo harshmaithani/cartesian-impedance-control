@@ -1,0 +1,23 @@
+pantilt:
+  # CONTROLLERS USED IN THE EXAMPLE 
+  joint_state_controller:
+    type: joint_state_controller/JointStateController
+    publish_rate: 100
+
+  # Joint Group Position Controller -----------------------------
+  pantilt_group_position_controller:
+    type: position_controllers/JointGroupPositionController
+    joints:
+        - pantilt_pivot1
+        - pantilt_pivot2
+        - pantilt_pivot3
+        - pantilt_pivot4
+        
+        
+  pan_tilt_position_controller:
+     type: pan_tilt_controllers/PanTiltPosition
+     joints:
+        - pantilt_pivot1
+        - pantilt_pivot2
+        - pantilt_pivot3
+        - pantilt_pivot4

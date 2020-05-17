@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<package>
+  <name>kuka_lwr_controllers</name>
+  <version>0.0.0</version>
+  <description>The kuka_lwr_controllers package</description>
+
+  <maintainer email="laurent.lequievre@univ-bpclermont.fr">Laurent LEQUIEVRE</maintainer>
+
+  <license>BSD</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>controller_interface</build_depend>
+  <build_depend>control_toolbox</build_depend>
+  <build_depend>urdf</build_depend>
+  <build_depend>kdl_parser</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>geometry_msgs</build_depend>
+  <build_depend>message_generation</build_depend>
+  <build_depend>kuka_lwr_hw</build_depend>
+  <build_depend>realtime_tools</build_depend> 
+  <!--<build_depend>trac_ik_lib</build_depend>-->
+  <build_depend>roscpp</build_depend>
+  <build_depend>rospy</build_depend>
+  <build_depend>std_msgs</build_depend>
+
+  <run_depend>controller_interface</run_depend>
+  <run_depend>control_toolbox</run_depend> 
+  <run_depend>urdf</run_depend>
+  <run_depend>kdl_parser</run_depend>
+  <run_depend>geometry_msgs</run_depend>
+  <run_depend>std_msgs</run_depend>
+  <run_depend>message_runtime</run_depend>
+  <run_depend>kuka_lwr_hw</run_depend>
+  <run_depend>realtime_tools</run_depend> 
+  <!--<run_depend>trac_ik_lib</run_depend>-->
+  <run_depend>roscpp</run_depend> 
+  <run_depend>rospy</run_depend> 
+  <run_depend>std_msgs</run_depend>
+  
+  <export>
+    <controller_interface plugin="${prefix}/kuka_lwr_controllers_plugins.xml"/>
+  </export>
+</package>

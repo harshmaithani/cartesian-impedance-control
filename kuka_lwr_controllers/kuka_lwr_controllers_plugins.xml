@@ -1,0 +1,111 @@
+<library path="lib/libkuka_lwr_controllers">
+
+	<class name="kuka_lwr_controllers/OneTaskInverseKinematics" type="kuka_lwr_controllers::OneTaskInverseKinematics" base_class_type="controller_interface::ControllerBase">
+		<description>
+		  Info...
+		</description>
+	</class> 
+
+	<class name="kuka_lwr_controllers/OneTaskInverseKinematicsFRI" type="kuka_lwr_controllers::OneTaskInverseKinematicsFRI" base_class_type="controller_interface::ControllerBase">
+		<description>
+		  Info...
+		</description>
+	</class> 
+	
+	<class name="kuka_lwr_controllers/CartesianVelocityControl" type="kuka_lwr_controllers::CartesianVelocityControl" base_class_type="controller_interface::ControllerBase">
+		<description>
+		  Info...
+		</description>
+	</class> 
+  
+	<class name="kuka_lwr_controllers/GroupCommandController" type="kuka_lwr_controllers::GroupCommandController" base_class_type="controller_interface::ControllerBase">
+		<description>
+			Info...
+		</description>
+	</class> 
+	
+	<class name="kuka_lwr_controllers/GroupCommandControllerFRI" type="kuka_lwr_controllers::GroupCommandControllerFRI" base_class_type="controller_interface::ControllerBase">
+		<description>
+			Info...
+		</description>
+	</class> 
+	
+	<class name="kuka_lwr_controllers/GravityCompensationController" type="kuka_lwr_controllers::GravityCompensationController" base_class_type="controller_interface::ControllerBase">
+		<description>
+			Info...
+		</description>
+	</class> 
+	
+	<class name="kuka_lwr_controllers/SimpleCartesianImpedanceController" type="kuka_lwr_controllers::SimpleCartesianImpedanceController" base_class_type="controller_interface::ControllerBase">
+		<description>
+			Info...
+		</description>
+	</class> 
+	
+	<class name="kuka_lwr_controllers/TorqueBasedPositionController" type="kuka_lwr_controllers::TorqueBasedPositionController" base_class_type="controller_interface::ControllerBase">
+		<description>
+			Info...
+		</description>
+	</class> 
+	
+	<class name="kuka_lwr_controllers/TorqueBasedPositionControllerGazebo" type="kuka_lwr_controllers::TorqueBasedPositionControllerGazebo" base_class_type="controller_interface::ControllerBase">
+		<description>
+			Info...
+		</description>
+	</class> 
+
+	<class name="kuka_lwr_controllers/ComputedTorqueController" type="kuka_lwr_controllers::ComputedTorqueController" base_class_type="controller_interface::ControllerBase">
+		<description>
+			Info...
+		</description>
+	</class> 
+
+	<class name="kuka_lwr_controllers/CartesianComputedTorqueController" type="kuka_lwr_controllers::CartesianComputedTorqueController" base_class_type="controller_interface::ControllerBase">
+		<description>
+			Info...
+		</description>
+	</class> 
+	
+	<class name="kuka_lwr_controllers/BasicTorqueController" type="kuka_lwr_controllers::BasicTorqueController" base_class_type="controller_interface::ControllerBase">
+		<description>
+			Info...
+		</description>
+	</class> 
+	
+	<class name="kuka_lwr_controllers/OperationalSpaceController" type="kuka_lwr_controllers::OperationalSpaceController" base_class_type="controller_interface::ControllerBase">
+		<description>
+			Info...
+		</description>
+	</class> 
+
+    <class name="kuka_lwr_controllers/HarshCartesianImpedanceController" type="kuka_lwr_controllers::HarshCartesianImpedanceController" base_class_type="controller_interface::ControllerBase">
+		<description>
+			Info...
+		</description>
+	</class> 
+	
+	<class name="kuka_lwr_controllers/HarshAdmittanceController" type="kuka_lwr_controllers::HarshAdmittanceController" base_class_type="controller_interface::ControllerBase">
+		<description>
+			Info...
+		</description>
+	</class> 
+	
+	<class name="kuka_lwr_controllers/HarshTrustImpedanceController" type="kuka_lwr_controllers::HarshTrustImpedanceController" base_class_type="controller_interface::ControllerBase">
+		<description>
+			Info...
+		</description>
+	</class>
+		
+	<class name="kuka_lwr_controllers/HarshAdmittanceControllerFRI" type="kuka_lwr_controllers::HarshAdmittanceControllerFRI" base_class_type="controller_interface::ControllerBase">
+		<description>
+			Info...
+		</description>
+	</class>
+	
+	<class name="kuka_lwr_controllers/HarshAdmittanceControllerROS" type="kuka_lwr_controllers::HarshAdmittanceControllerROS" base_class_type="controller_interface::ControllerBase">
+		<description>
+			Info...
+		</description>
+	</class> 
+
+</library>

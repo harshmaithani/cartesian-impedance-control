@@ -1,0 +1,6 @@
+# camera parameters of Imaging Source DFx31BF03-Z2
+guid: 0007481202b052f6
+video_mode: 1024x768_yuv422
+frame_id: camera_31BF03_Z2
+frame_rate: 14
+zoom: 2

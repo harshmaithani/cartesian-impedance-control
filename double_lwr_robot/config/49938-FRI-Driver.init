@@ -1,0 +1,27 @@
+# Initialization file for the KUKA Fast Research Interface of the Light-Weight Robot IV
+
+[RobotName]
+Name=49938
+
+[Priorities]
+#Priority range: 1..99
+KRCCommunicationThread=99
+TimerThread=98
+MainThread=97
+OutputConsoleThread=5
+
+[ControlValues]
+# Cycle time in seconds
+CycleTime=0.002
+
+[Logging]
+NumberOfLoggingFileEntries=60000
+LoggingPath=/home/ifma/FRIOutput
+LoggingFileName=LWR-Scope.dat
+
+[Network]
+#Put your network IP here
+#then, the interface will be choosed
+ServerIP=192.168.100.253
+ServerPortNumber=49938
+

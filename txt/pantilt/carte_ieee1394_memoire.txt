@@ -1,0 +1,86 @@
+Operations à faire pour installer et configurer la carte ieee1394 :
+
+1- insertion de la carte double ieee1394 dans machine dell
+
+2- lspci | grep 1394
+07:04.0 FireWire (IEEE 1394): LSI Corporation FW322/323 [TrueFire] 1394a Controller (rev 70)
+07:0a.0 FireWire (IEEE 1394): Texas Instruments TSB43AB22A IEEE-1394a-2000 Controller (PHY/Link) [iOHCI-Lynx]
+
+-> la carte est reconnue -> LSI Corporation FW322/323
+
+lsmod | grep "firewire"
+firewire_ohci          40409  0 
+firewire_core          68769  1 firewire_ohci
+crc_itu_t              12707  1 firewire_core
+
+-> utilise bien les nouveaux pilotes firewire
+
+cf tuto : http://fr.lprod.org/wiki/doku.php/ressources:1394
+
+3- vérifier si paquets : libraw1394-11 et  libavc1394-0 sont installés
+
+//4- Ajouter les modules dans /etc/modules
+//cf : 
+//https://forum.ubuntu-fr.org/viewtopic.php?id=778801
+//http://ubuntu-install.blogspot.fr/2009/06/here-you-find-manual-for-connecting.html
+//sudo gedit /etc/modules
+//ajouter ces lignes :
+//raw1394
+//video1394
+//dv1394
+
+5- modifier le contenu du fichier /etc/modprobe.d/blacklist-firewire.conf
+cf : https://wiki.kubuntu.org/Kernel/SwitchFirewireStack
+Il faut "blacklister" certains modules car ils sont disponibles dans le kernel "linux".
+cf : http://security.stackexchange.com/questions/4098/how-to-disable-firewire-in-openbsd-linux-to-prevent-attacks-through-firewire
+
+# Select the legacy firewire stack over the new CONFIG_FIREWIRE one.
+
+blacklist ohci1394
+blacklist sbp2
+blacklist eth1394
+blacklist dv1394
+blacklist raw1394
+blacklist video1394
+
+#blacklist firewire-core
+#blacklist firewire-ohci
+#blacklist firewire-sbp2
+
+puis regenerer l'initramfs pour tous les noyaux dispo :
+sudo update-initramfs -k all -u
+(-k all -> pour tous les noyaux, -u pour update)
+puis : reboot la machine
+
+6- installer coriander
+sudo apt-get install coriander
+
+Remarques:
+Il y a deux cameras :
+-> Imaging Source Firewire CCD color zoom camera DFK 21BF04-Z2
+(640x480)
+cf : http://www.ivsimaging.com/Products/The-Imaging-Source-DFK-21BF04-Z2
+guid=0007481201ccf87f
+
+-> Imaging Source Firewire CCD Color Zoom Camera DFK 31BF03-Z2
+(1024x768)
+cf: http://www.ivsimaging.com/Products/The-Imaging-Source-DFK-31BF03-Z2
+guid=0007481202b052f6
+
+
+7- Installer le package camera1394
+cf : http://wiki.ros.org/camera1394
+git clone https://github.com/ros-drivers/camera1394.git camera1394
+
+8- Utiliser le package camera1394
+cf : http://wiki.ros.org/camera1394/Tutorials/ConnectingToIEEE1394Camera
+roscore
+rosrun camera1394 camera1394_node _guid:=0007481201ccf87f
+rosrun camera1394 camera1394_node _guid:=0007481202b052f6
+rostopic list
+rosrun image_view image_view image:=camera/image_raw
+
+
+
+
+

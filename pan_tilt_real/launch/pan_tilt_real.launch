@@ -1,0 +1,96 @@
+<launch>
+	<!-- these are the arguments you can pass this launch file, for example paused:=true -->
+	<arg name="paused" default="false"/>
+	<arg name="use_sim_time" default="true"/>
+	<arg name="gui" default="true"/>
+	<arg name="headless" default="false"/>
+	<arg name="debug" default="false"/>
+
+	<!-- set some ros tools -->
+	<arg name="use_rviz" default="true"/>
+	<arg name="use_controller" default="true"/>
+	<arg name="use_camera" default="true"/>
+	<arg name="view_camera" default="true"/>
+
+	<arg name="robot_name" default="pantilt_gazebo"/>
+	<param name="robot_description" command="$(find xacro)/xacro.py '$(find pantilt_gazebo)/robot/$(arg robot_name).urdf.xacro'" />
+	<param name="pantilt/robot_description" command="$(find xacro)/xacro.py '$(find pantilt_gazebo)/robot/$(arg robot_name).urdf.xacro'" />
+	<node name="spawn_trunk_urdf" pkg="gazebo_ros" type="spawn_model" args="-param robot_description -urdf -model $(arg robot_name)" respawn="false" output="screen" />
+	
+	<!-- load robotHW configurations to rosparam server -->
+	<rosparam command="load" file="$(find pantilt_gazebo)/config/pantilt_hw_interface.yaml"/>
+
+	<!-- load all controller configurations to rosparam server -->
+	<rosparam file="$(find pantilt_gazebo)/config/pantilt_control.yaml" command="load"/>
+	
+	<param name="robot_description_semantic" textfile="$(find pantilt_description)/model/pantilt_semantic.srdf" />
+	
+	<group if="$(arg use_controller)">
+	
+		<arg name="controllers" default="pan_tilt_position_controller" />
+	
+		<!-- namespace of left arm -->
+		<group ns="pantilt">
+			<node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="true" output="screen" args="joint_state_controller $(arg controllers)"/>
+		</group>
+		
+		<group ns="pantilt">
+			<!-- the real hardware interface /-->
+			<node required="true" name="pan_tilt_hw_node" pkg="pan_tilt_hw" type="pan_tilt_hw_node" respawn="false" output="screen"/>
+			
+			<node name="robot_state_publisher_pan_tilt" pkg="robot_state_publisher" type="robot_state_publisher" />
+				
+		</group>
+		
+	</group>
+
+	
+	<group if="$(arg use_rviz)">
+		<node name="kuka_lwr_rviz" pkg="rviz" type="rviz" respawn="false" args="-d $(find pantilt_gazebo)/rviz/rviz_config_pantilt_only.rviz" output="screen"/>
+	</group>
+	
+	<group if="$(arg use_camera)">
+	
+		<!-- camera DFx21BF04-Z2 RIGHT -->
+		<group ns="camera_21BF04_Z2_right" >
+			<node pkg="camera1394" type="camera1394_node" name="camera_21BF04_Z2_right_node" >
+			  <rosparam file="$(find pan_tilt_real)/config/camera_21bf04_z2_right.yaml" />
+			  <!--<remap from="camera" to="camera_21bf04_z2_right" />-->
+			</node>
+		</group>
+
+		<group ns="camera_21BF04_Z2_left" >
+			<node pkg="camera1394" type="camera1394_node" name="camera_21BF04_Z2_left_node" >
+			  <rosparam file="$(find pan_tilt_real)/config/camera_21bf04_z2_left.yaml" />
+			  <!--<remap from="camera" to="camera_21bf04_z2_left" />-->
+			</node>
+		</group>
+
+		
+		<!-- camera DFx31BF03-Z2 -->
+		<!-- <group ns="camera_31BF03_Z2" >-->
+			<!-- <node pkg="camera1394" type="camera1394_node" name="camera_31BF03_Z2_node" >-->
+			 <!--  <rosparam file="$(find pan_tilt_real)/config/camera_31bf03_z2.yaml" />-->
+			  <!--<remap from="camera" to="camera_31bf03_z2" />-->
+			<!-- </node>-->
+		<!-- </group>-->
+		
+	</group>
+	
+	<group if="$(arg view_camera)">
+	
+		<node pkg="image_view" type="image_view" name="image_view_camera_21BF04_Z2_right" >
+			<remap from="image" to="camera_21BF04_Z2_right/camera/image_raw" />
+		</node>
+
+		<node pkg="image_view" type="image_view" name="image_view_camera_21BF04_Z2_left" >
+			<remap from="image" to="camera_21BF04_Z2_left/camera/image_raw" />
+		</node>
+		
+		<!-- <node pkg="image_view" type="image_view" name="image_view_camera_31BF03_Z2" >-->
+			<!-- <remap from="image" to="camera_31BF03_Z2/camera/image_raw" />-->
+		<!-- </node>-->
+	
+	</group>
+	
+</launch>

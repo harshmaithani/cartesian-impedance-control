@@ -1,0 +1,29 @@
+# make the namespace match the name you use to instantiate the arm in the xacro
+kuka_lwr_left:
+  root: kuka_lwr_left_base_link
+  tip: kuka_lwr_left_7_link
+  # joints is not used, since with the robot name and urdf name conventions, the parsing is hardcoded
+  # but as a general solution, joint names could be loaded as well, like controllers do
+  joints: 
+  - kuka_lwr_left_0_joint
+  - kuka_lwr_left_1_joint
+  - kuka_lwr_left_2_joint
+  - kuka_lwr_left_3_joint
+  - kuka_lwr_left_4_joint
+  - kuka_lwr_left_5_joint
+  - kuka_lwr_left_6_joint
+  
+# make the namespace match the name you use to instantiate the arm in the xacro
+kuka_lwr_right:
+  root: kuka_lwr_right_base_link
+  tip: kuka_lwr_right_7_link
+  # joints is not used, since with the robot name and urdf name conventions, the parsing is hardcoded
+  # but as a general solution, joint names could be loaded as well, like controllers do
+  joints: 
+  - kuka_lwr_right_0_joint
+  - kuka_lwr_right_1_joint
+  - kuka_lwr_right_2_joint
+  - kuka_lwr_right_3_joint
+  - kuka_lwr_right_4_joint
+  - kuka_lwr_right_5_joint
+  - kuka_lwr_right_6_joint

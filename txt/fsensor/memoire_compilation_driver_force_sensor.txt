@@ -1,0 +1,14 @@
+Compiler le module/driver de l'adaptateur USB3/ethernet
+=======================================================
+
+se mettre dans le dossier (de la machine hand)
+/home/hand/git_project/driver_ethernet_adapter/AX88179_178A_LINUX_DRIVER_v1.9.0_SOURCE
+
+se mettre en sudo :
+sudo su
+
+lancer la compilation:
+make
+
+Attention, à chaque mise à jour d'ubuntu qui change de noyau linux, il faudra recompiler le driver de l'adaptateur UB3/ethernet
+

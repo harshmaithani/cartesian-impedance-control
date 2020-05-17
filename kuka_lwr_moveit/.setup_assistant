@@ -1,0 +1,10 @@
+moveit_setup_assistant_config:
+  URDF:
+    package: double_lwr_robot
+    relative_path: robot/double_lwr_robot.urdf.xacro
+  SRDF:
+    relative_path: config/double_lwr_robot.srdf
+  CONFIG:
+    author_name: Laurent LEQUIEVRE
+    author_email: laurent.lequievre@uca.fr
+    generated_timestamp: 1508258510

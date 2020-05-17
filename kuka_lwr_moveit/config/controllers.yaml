@@ -1,0 +1,27 @@
+controller_list:
+  - name: /kuka_lwr_left/joint_trajectory_controller
+    action_ns: follow_joint_trajectory
+    type: FollowJointTrajectory
+    default: true
+    joints: 
+      - kuka_lwr_left_0_joint
+      - kuka_lwr_left_1_joint
+      - kuka_lwr_left_2_joint
+      - kuka_lwr_left_3_joint
+      - kuka_lwr_left_4_joint
+      - kuka_lwr_left_5_joint
+      - kuka_lwr_left_6_joint
+
+  - name: /kuka_lwr_right/joint_trajectory_controller
+    action_ns: follow_joint_trajectory
+    type: FollowJointTrajectory
+    default: true
+    joints: 
+      - kuka_lwr_right_0_joint
+      - kuka_lwr_right_1_joint
+      - kuka_lwr_right_2_joint
+      - kuka_lwr_right_3_joint
+      - kuka_lwr_right_4_joint
+      - kuka_lwr_right_5_joint
+      - kuka_lwr_right_6_joint
+

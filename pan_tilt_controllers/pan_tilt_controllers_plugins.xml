@@ -1,0 +1,9 @@
+<library path="lib/libpan_tilt_controllers">
+	  
+	<class name="pan_tilt_controllers/PanTiltPosition" type="pan_tilt_controllers::PanTiltPosition" base_class_type="controller_interface::ControllerBase">
+		<description>
+			Info...
+		</description>
+	</class> 
+
+</library>

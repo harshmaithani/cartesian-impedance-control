@@ -1,0 +1,703 @@
+/*
+ *  Laurent LEQUIEVRE
+ *  Institut Pascal UMR6602
+ *  laurent.lequievre@univ-bpclermont.fr
+ * 
+*/
+
+#include <simple_cartesian_impedance_controller.h>
+
+#include <algorithm>
+#include <Eigen/Dense>
+#include <utils/pseudo_inversion.h>
+#include "math.h"
+
+// For plugin
+#include <pluginlib/class_list_macros.h>
+
+namespace kuka_lwr_controllers 
+{
+    SimpleCartesianImpedanceController::SimpleCartesianImpedanceController() {}
+    SimpleCartesianImpedanceController::~SimpleCartesianImpedanceController() {}
+    
+     bool SimpleCartesianImpedanceController::init(hardware_interface::KUKACartesianInterface *robot, ros::NodeHandle &n)
+     {
+		robot_namespace_ = n.getNamespace();
+		// robot_namespace_ contains the namespace concatenate with the name of this controller
+		// example : /kuka_lwr_left/kuka_simple_cartesian_impedance_controller
+		// Only need to get the namespace --------------------------------------------
+		int pos_found = robot_namespace_.find("/",1);
+		std::string robot_namespace_only = robot_namespace_.substr(1,pos_found-1);
+		// ----------------------------------------------------------------------------
+		 
+		#if TRACE_CARTESIAN_IMPENDANCE_CONTROLLER_ACTIVATED
+			ROS_INFO("SimpleCartesianImpedanceController: Start init of robot %s !",robot_namespace_.c_str());
+			ROS_INFO("SimpleCartesianImpedanceController: Start init of robot ns only %s !",robot_namespace_only.c_str());
+		#endif
+		
+			
+        if( !(KinematicChainControllerBase<hardware_interface::KUKACartesianInterface>::init(robot, n)) )
+        {
+            ROS_ERROR("SimpleCartesianImpedanceController: Couldn't initilize SimpleCartesianImpedanceController controller of robot %s!",robot_namespace_.c_str());
+            return false;
+        }
+        
+        //initializes the solvers
+        jnt_to_jac_solver_.reset(new KDL::ChainJntToJacSolver(kdl_chain_));
+        fk_pos_solver_.reset(new KDL::ChainFkSolverPos_recursive(kdl_chain_));
+        fk_vel_solver_.reset(new KDL::ChainFkSolverVel_recursive(kdl_chain_));
+        id_solver_.reset(new KDL::ChainDynParam( kdl_chain_, gravity_));
+
+        // Get Cartesian Stiffness and Damping Interfaces Handles
+        kuka_cart_stiff_handle_ = robot->getHandle(robot_namespace_only + "_cart_stiffness");
+        kuka_cart_damp_handle_ = robot->getHandle(robot_namespace_only + "_cart_damping");
+        
+        // Get Cartesian Pose and Wrench Interfaces Handles
+        kuka_cart_pose_handle_ = robot->getHandle(robot_namespace_only + "_cart_pose");
+        kuka_cart_wrench_handle_ = robot->getHandle(robot_namespace_only + "_cart_wrench");
+        
+        sub_cart_stiffness_command_ = n.subscribe("setCartesianStiffness", 1, &SimpleCartesianImpedanceController::setCartesianStiffness, this); 
+        sub_cart_damping_command_ = n.subscribe("setCartesianDamping", 1, &SimpleCartesianImpedanceController::setCartesianDamping, this); 
+        
+        sub_cart_pose_command_ = n.subscribe("setCartesianPose", 1, &SimpleCartesianImpedanceController::setCartesianPose, this); 
+        sub_cart_wrench_command_ = n.subscribe("setCartesianWrench", 1, &SimpleCartesianImpedanceController::setCartesianWrench, this); 
+        
+        realtime_pose_pub_.reset(new realtime_tools::RealtimePublisher<geometry_msgs::PoseStamped>(n, "cartesianPose", 4));
+       
+        // Publishers
+        pub_robot_data_                      	= n.advertise<std_msgs::Float64MultiArray>("/robot_data", 1000);
+        pub_cart_imp_data_         				= n.advertise<std_msgs::Float64MultiArray>("/cart_imp_data", 1000);
+        pub_cart_imp_pose_meters_     			= n.advertise<std_msgs::Float64MultiArray>("/cart_imp_pose_meters", 1000);
+        pub_cart_imp_pose_mm_     				= n.advertise<std_msgs::Float64MultiArray>("/cart_imp_pose_mm", 1000);
+        pub_cart_imp_pose_meters_rpy_rad_  		= n.advertise<std_msgs::Float64MultiArray>("/cart_imp_pose_meters_rpy_rad", 1000);
+        pub_cart_imp_pose_mm_rpy_deg_    		= n.advertise<std_msgs::Float64MultiArray>("/cart_imp_pose_mm_rpy_deg", 1000);
+        pub_cart_imp_joint_states_rad_ 			= n.advertise<std_msgs::Float64MultiArray>("/cart_imp_joint_states_rad", 1000);
+        pub_cart_imp_joint_states_deg_ 			= n.advertise<std_msgs::Float64MultiArray>("/cart_imp_joint_states_deg", 1000);
+        pub_cart_imp_joint_velocity_rads_  		= n.advertise<std_msgs::Float64MultiArray>("/cart_imp_joint_velocity_rads", 1000);
+        pub_cart_imp_joint_velocity_degs_  		= n.advertise<std_msgs::Float64MultiArray>("/cart_imp_joint_velocity_degs", 1000);
+        pub_cart_imp_kdl_cart_velocity_m_rad_  	= n.advertise<std_msgs::Float64MultiArray>("/cart_imp_kdl_cart_velocity_m_rad", 1000);
+        pub_cart_imp_kdl_cart_velocity_mm_deg_  = n.advertise<std_msgs::Float64MultiArray>("/cart_imp_kdl_cart_velocity_mm_deg", 1000);
+        // pub_robot_joint_acceleration_radss_  = n.advertise<std_msgs::Float64MultiArray>("/robot_joint_acceleration_radss", 1000);
+        // pub_robot_joint_acceleration_degss_  = n.advertise<std_msgs::Float64MultiArray>("/robot_joint_acceleration_degss", 1000);
+
+         pub_cart_imp_joint_motor_torques_  		= n.advertise<std_msgs::Float64MultiArray>("/cart_imp_joint_motor_torques", 1000);
+         pub_cart_imp_estimated_forces_			= n.advertise<std_msgs::Float64MultiArray>("/cart_imp_estimated_forces", 1000);
+         pub_cart_imp_commanded_forces_ 			= n.advertise<std_msgs::Float64MultiArray>("/cart_imp_commanded_forces", 1000);
+         pub_cart_imp_kdl_jacobian_				= n.advertise<std_msgs::Float64MultiArray>("/cart_imp_kdl_jacobian", 1000);
+         pub_cart_imp_stiffness_       			= n.advertise<std_msgs::Float64MultiArray>("/cart_imp_stiffness", 1000);
+         pub_cart_imp_damping_         			= n.advertise<std_msgs::Float64MultiArray>("/cart_imp_damping", 1000);
+
+         realtime_pose_pub_.reset(new realtime_tools::RealtimePublisher<geometry_msgs::PoseStamped>(n, "cartesianPose", 4));
+
+       robot_data_.data.resize(19);
+       
+        cur_Pose_FRI_.resize(NUMBER_OF_FRAME_ELEMENTS);
+       
+        // Resize variables here
+
+        robot_data_.data.resize(1);
+        robot_pose_meters_.data.resize(16);
+        robot_pose_mm_.data.resize(16);
+        robot_pose_meters_rpy_rad_.data.resize(6);
+        robot_pose_mm_rpy_deg_.data.resize(6);
+        robot_joint_states_rad_.data.resize(7);
+        robot_joint_states_deg_.data.resize(7);
+        robot_joint_velocity_rads_.data.resize(7);
+        robot_joint_velocity_degs_.data.resize(7);
+        robot_cartesian_velocity_m_rad_.data.resize(6);
+        robot_cartesian_velocity_mm_deg_.data.resize(6);
+        robot_joint_motor_torques_.data.resize(7);
+        robot_estimated_forces_.data.resize(6);
+        robot_commanded_forces_.data.resize(6);
+        robot_jacobian_.data.resize(42);
+        robot_stiffness_.data.resize(6);
+        robot_damping_.data.resize(6);
+
+         // Initialize local variables here
+
+         jacobian_.resize(kdl_chain_.getNrOfJoints());
+
+         joint_positions_.resize(7);
+         joint_velocities_.resize(6);
+
+
+        return true;
+        
+	 }
+	 
+	 void SimpleCartesianImpedanceController::starting(const ros::Time& time)
+     {
+        
+		#if TRACE_CARTESIAN_IMPENDANCE_CONTROLLER_ACTIVATED
+			ROS_INFO("SimpleCartesianImpedanceController: Starting of robot %s !",robot_namespace_.c_str());
+		#endif
+		
+		trace_count_ = 0;
+		
+		// Get current Pose (Rotation && Translation matrix values)
+		getCurrentPose_(pose_cur_);
+		
+		// Initial Cartesian stiffness
+		KDL::Stiffness init_stiffness( 800.0, 800.0, 800.0, 50.0, 50.0, 50.0 );
+		stiff_cur_ = init_stiffness;
+		
+		// Initial Cartesian damping
+		KDL::Stiffness init_damping( 0.8, 0.8, 0.8, 0.8, 0.8, 0.8 );
+		damp_cur_ = init_damping;
+		
+		// Initial force/torque wrench
+		KDL::Wrench init_wrench(KDL::Vector(0.0, 0.0, 0.0), KDL::Vector(0.0, 0.0, 0.0));
+		wrench_cur_ = init_wrench;
+		
+		// forward initial commands to HW
+		forwardCmdFRI_(pose_cur_,stiff_cur_,damp_cur_,wrench_cur_);
+
+        for (int i = 0; i < joint_handles_.size(); i++)
+          {
+         joint_positions_(i) = joint_handles_[i].getPosition();
+          }
+
+         // Initial Jacobian
+         jnt_to_jac_solver_->JntToJac(joint_positions_, jacobian_);
+		
+     }
+    
+     void SimpleCartesianImpedanceController::stopping(const ros::Time& time)
+	 {
+		#if TRACE_CARTESIAN_IMPENDANCE_CONTROLLER_ACTIVATED
+			ROS_INFO_NAMED("SimpleCartesianImpedanceController: Stopping of robot %s !",robot_namespace_.c_str());
+		#endif
+		
+	 }
+	 
+	 void SimpleCartesianImpedanceController::update(const ros::Time& time, const ros::Duration& period)
+     {
+		// Get current Pose (Rotation && Translation matrix values)
+		getCurrentPose_(pose_cur_);
+		
+		// Publish current cartesian pose
+		publishCurrentPose(pose_cur_);
+        
+		// forward initial commands to HW
+		forwardCmdFRI_(pose_cur_,stiff_cur_,damp_cur_,wrench_cur_);
+		 
+		 // Publish Robot Data	
+	 
+		robot_data_.data[0] = (float) ros::Time::now().toSec();
+
+		// Pose
+		robot_data_.data[1]  = kuka_cart_pose_handle_.getRXX();   //Rxx
+		robot_data_.data[2]  = kuka_cart_pose_handle_.getRXY();   //Rxy
+		robot_data_.data[3]  = kuka_cart_pose_handle_.getRXZ();   //Rxz
+		robot_data_.data[4]  = kuka_cart_pose_handle_.getTX();    //Tx
+		robot_data_.data[5]  = kuka_cart_pose_handle_.getRYX();   //Ryx
+	    robot_data_.data[6]  = kuka_cart_pose_handle_.getRYY();   //Ryy
+		robot_data_.data[7]  = kuka_cart_pose_handle_.getRYZ();   //Ryz
+		robot_data_.data[8]  = kuka_cart_pose_handle_.getTY();    //Ty
+		robot_data_.data[9]  = kuka_cart_pose_handle_.getRZX();   //Rzx
+		robot_data_.data[10] = kuka_cart_pose_handle_.getRZY();   //Rzy
+		robot_data_.data[11] = kuka_cart_pose_handle_.getRZZ();   //Rzz
+	    robot_data_.data[12] = kuka_cart_pose_handle_.getTZ();   //Tz
+	 
+	 	// Joint positions
+		robot_data_.data[13]  =	joint_msr_states_.q(0);
+		robot_data_.data[14]  =	joint_msr_states_.q(1);
+		robot_data_.data[15]  =	joint_msr_states_.q(2);
+		robot_data_.data[16]  =	joint_msr_states_.q(3);
+		robot_data_.data[17]  =	joint_msr_states_.q(4);
+		robot_data_.data[18]  =	joint_msr_states_.q(5);
+		robot_data_.data[19]  =	joint_msr_states_.q(6);
+		
+		// Stiffness 
+		
+		robot_data_.data[20]  = stiff_cur_[0];  // Kx
+		robot_data_.data[21]  = stiff_cur_[1];  // Ky
+		robot_data_.data[22]  = stiff_cur_[2];  // Kz
+		robot_data_.data[23]  = stiff_cur_[3];  // Kpitch
+		robot_data_.data[24]  = stiff_cur_[4];  // Kyaw
+		robot_data_.data[25]  = stiff_cur_[5];  // Kroll
+			
+		// Damping
+		
+		robot_data_.data[26]  = damp_cur_[0];  // Bx
+		robot_data_.data[27]  = damp_cur_[1];  // By
+		robot_data_.data[28]  = damp_cur_[2];  // Bz
+		robot_data_.data[29]  = damp_cur_[3];  // B_pitch
+		robot_data_.data[30]  = damp_cur_[4];  // B_yaw
+		robot_data_.data[31]  = damp_cur_[5];  // B_roll
+		
+		// External Wrench 
+	
+		robot_data_.data[32]  = wrench_cur_.force.x();   //Fx
+		robot_data_.data[33]  = wrench_cur_.force.y();   //Fy
+		robot_data_.data[34]  = wrench_cur_.force.z();   //Fz
+	    robot_data_.data[35]  = wrench_cur_.torque.x();  //Taux
+	    robot_data_.data[36]  = wrench_cur_.torque.y();  //Tauy
+	    robot_data_.data[37]  = wrench_cur_.torque.z();  //Tauz
+
+        // Pose in meters
+                robot_pose_meters_.data[0]  = kuka_cart_pose_handle_.getRXX();   //Rxx
+                robot_pose_meters_.data[1]  = kuka_cart_pose_handle_.getRXY();   //Rxy
+                robot_pose_meters_.data[2]  = kuka_cart_pose_handle_.getRXZ();   //Rxz
+                robot_pose_meters_.data[3]  = kuka_cart_pose_handle_.getTX();    //Tx
+                robot_pose_meters_.data[4]  = kuka_cart_pose_handle_.getRYX();   //Ryx
+                robot_pose_meters_.data[5]  = kuka_cart_pose_handle_.getRYY();   //Ryy
+                robot_pose_meters_.data[6]  = kuka_cart_pose_handle_.getRYZ();   //Ryz
+                robot_pose_meters_.data[7]  = kuka_cart_pose_handle_.getTY();    //Ty
+                robot_pose_meters_.data[8]  = kuka_cart_pose_handle_.getRZX();   //Rzx
+                robot_pose_meters_.data[9]  = kuka_cart_pose_handle_.getRZY();   //Rzy
+                robot_pose_meters_.data[10] = kuka_cart_pose_handle_.getRZZ();   //Rzz
+                robot_pose_meters_.data[11] = kuka_cart_pose_handle_.getTZ();    //Tz
+                robot_pose_meters_.data[12] = 0;
+                robot_pose_meters_.data[13] = 0;
+                robot_pose_meters_.data[14] = 0;
+                robot_pose_meters_.data[15] = 1;
+
+                // Pose in mm
+                robot_pose_mm_.data[0]  = kuka_cart_pose_handle_.getRXX();   //Rxx
+                robot_pose_mm_.data[1]  = kuka_cart_pose_handle_.getRXY();   //Rxy
+                robot_pose_mm_.data[2]  = kuka_cart_pose_handle_.getRXZ();   //Rxz
+                robot_pose_mm_.data[3]  = 1000*kuka_cart_pose_handle_.getTX();    //Tx
+                robot_pose_mm_.data[4]  = kuka_cart_pose_handle_.getRYX();   //Ryx
+                robot_pose_mm_.data[5]  = kuka_cart_pose_handle_.getRYY();   //Ryy
+                robot_pose_mm_.data[6]  = kuka_cart_pose_handle_.getRYZ();   //Ryz
+                robot_pose_mm_.data[7]  = 1000*kuka_cart_pose_handle_.getTY();    //Ty
+                robot_pose_mm_.data[8]  = kuka_cart_pose_handle_.getRZX();   //Rzx
+                robot_pose_mm_.data[9]  = kuka_cart_pose_handle_.getRZY();   //Rzy
+                robot_pose_mm_.data[10] = kuka_cart_pose_handle_.getRZZ();   //Rzz
+                robot_pose_mm_.data[11] = 1000*kuka_cart_pose_handle_.getTZ();    //Tz
+                robot_pose_mm_.data[12] = 0;
+                robot_pose_mm_.data[13] = 0;
+                robot_pose_mm_.data[14] = 0;
+                robot_pose_mm_.data[15] = 1;
+
+                // Pose in meters and rpy in rad
+
+                for (int i = 0; i < joint_handles_.size(); i++)
+                    {
+                     joint_positions_(i) = joint_handles_[i].getPosition();
+                     joint_velocities_.q(i) = joint_handles_[i].getVelocity();
+                    }
+
+                fk_pos_solver_->JntToCart(joint_positions_,pose_current_); 			// computing forward kinematics
+                pose_current_.M.GetRPY (roll_,pitch_,yaw_);
+
+                robot_pose_meters_rpy_rad_.data[0]  = kuka_cart_pose_handle_.getTX();    //Tx
+                robot_pose_meters_rpy_rad_.data[1]  = kuka_cart_pose_handle_.getTY();    //Ty
+                robot_pose_meters_rpy_rad_.data[2]  = kuka_cart_pose_handle_.getTZ();    //Tz
+                robot_pose_meters_rpy_rad_.data[3]  = roll_;
+                robot_pose_meters_rpy_rad_.data[4]  = pitch_;
+                robot_pose_meters_rpy_rad_.data[5]  = yaw_;
+
+                // Pose in mm and rpy in deg
+
+                robot_pose_mm_rpy_deg_.data[0]  = 1000*kuka_cart_pose_handle_.getTX();    //Tx
+                robot_pose_mm_rpy_deg_.data[1]  = 1000*kuka_cart_pose_handle_.getTY();    //Ty
+                robot_pose_mm_rpy_deg_.data[2]  = 1000*kuka_cart_pose_handle_.getTZ();    //Tz
+                robot_pose_mm_rpy_deg_.data[3]  = (180/3.14)*roll_;
+                robot_pose_mm_rpy_deg_.data[4]  = (180/3.14)*pitch_;
+                robot_pose_mm_rpy_deg_.data[5]  = (180/3.14)*yaw_;
+
+                // Joint States in Radians
+
+                robot_joint_states_rad_.data[0]  =	joint_handles_[0].getPosition();
+                robot_joint_states_rad_.data[1]  =	joint_handles_[1].getPosition();
+                robot_joint_states_rad_.data[2]  =	joint_handles_[2].getPosition();
+                robot_joint_states_rad_.data[3]  =	joint_handles_[3].getPosition();
+                robot_joint_states_rad_.data[4]  =	joint_handles_[4].getPosition();
+                robot_joint_states_rad_.data[5]  =	joint_handles_[5].getPosition();
+                robot_joint_states_rad_.data[6]  =	joint_handles_[6].getPosition();
+
+                // Joint Positions in Degrees
+
+                robot_joint_states_deg_.data[0]  =	(180/3.14)*joint_handles_[0].getPosition();
+                robot_joint_states_deg_.data[1]  =	(180/3.14)*joint_handles_[1].getPosition();
+                robot_joint_states_deg_.data[2]  =	(180/3.14)*joint_handles_[2].getPosition();
+                robot_joint_states_deg_.data[3]  =	(180/3.14)*joint_handles_[3].getPosition();
+                robot_joint_states_deg_.data[4]  =	(180/3.14)*joint_handles_[4].getPosition();
+                robot_joint_states_deg_.data[5]  =	(180/3.14)*joint_handles_[5].getPosition();
+                robot_joint_states_deg_.data[6]  =	(180/3.14)*joint_handles_[6].getPosition();
+
+                // Joint Velocity in Radians/s
+
+                robot_joint_velocity_rads_.data[0]  =	joint_handles_[0].getVelocity();
+                robot_joint_velocity_rads_.data[1]  =	joint_handles_[1].getVelocity();
+                robot_joint_velocity_rads_.data[2]  =	joint_handles_[2].getVelocity();
+                robot_joint_velocity_rads_.data[3]  =	joint_handles_[3].getVelocity();
+                robot_joint_velocity_rads_.data[4]  =	joint_handles_[4].getVelocity();
+                robot_joint_velocity_rads_.data[5]  =	joint_handles_[5].getVelocity();
+                robot_joint_velocity_rads_.data[6]  =	joint_handles_[6].getVelocity();
+
+                // Joint Velocity in Degrees/s
+
+                robot_joint_velocity_degs_.data[0]  =	(180/3.14)*joint_handles_[0].getVelocity();
+                robot_joint_velocity_degs_.data[1]  =	(180/3.14)*joint_handles_[1].getVelocity();
+                robot_joint_velocity_degs_.data[2]  =	(180/3.14)*joint_handles_[2].getVelocity();
+                robot_joint_velocity_degs_.data[3]  =	(180/3.14)*joint_handles_[3].getVelocity();
+                robot_joint_velocity_degs_.data[4]  =	(180/3.14)*joint_handles_[4].getVelocity();
+                robot_joint_velocity_degs_.data[5]  =	(180/3.14)*joint_handles_[5].getVelocity();
+                robot_joint_velocity_degs_.data[6]  =	(180/3.14)*joint_handles_[6].getVelocity();
+
+                // Cartesian Velocity in m/s and rad/s
+
+                fk_vel_solver_->JntToCart(joint_velocities_ , cartesian_velocity_current_);
+
+                robot_cartesian_velocity_m_rad_.data[0]  = cartesian_velocity_current_.GetTwist().vel.x();
+                robot_cartesian_velocity_m_rad_.data[1]  = cartesian_velocity_current_.GetTwist().vel.y();
+                robot_cartesian_velocity_m_rad_.data[2]  = cartesian_velocity_current_.GetTwist().vel.z();
+                robot_cartesian_velocity_m_rad_.data[3]  = cartesian_velocity_current_.GetTwist().rot.x();
+                robot_cartesian_velocity_m_rad_.data[4]  = cartesian_velocity_current_.GetTwist().rot.y();
+                robot_cartesian_velocity_m_rad_.data[5]  = cartesian_velocity_current_.GetTwist().rot.z();
+
+                // Cartesian Velocity in mm/s and deg/s
+
+                robot_cartesian_velocity_mm_deg_.data[0]  = 1000*cartesian_velocity_current_.GetTwist().vel.x();
+                robot_cartesian_velocity_mm_deg_.data[1]  = 1000*cartesian_velocity_current_.GetTwist().vel.y();
+                robot_cartesian_velocity_mm_deg_.data[2]  = 1000*cartesian_velocity_current_.GetTwist().vel.z();
+                robot_cartesian_velocity_mm_deg_.data[3]  = (180/3.14)*cartesian_velocity_current_.GetTwist().rot.x();
+                robot_cartesian_velocity_mm_deg_.data[4]  = (180/3.14)*cartesian_velocity_current_.GetTwist().rot.y();
+                robot_cartesian_velocity_mm_deg_.data[5]  = (180/3.14)*cartesian_velocity_current_.GetTwist().rot.z();
+
+
+                // Joint Motor Torques in N-m
+
+                robot_joint_motor_torques_.data[0]  =	joint_handles_[0].getEffort();
+                robot_joint_motor_torques_.data[1]  =	joint_handles_[1].getEffort();
+                robot_joint_motor_torques_.data[2]  =	joint_handles_[2].getEffort();
+                robot_joint_motor_torques_.data[3]  =	joint_handles_[3].getEffort();
+                robot_joint_motor_torques_.data[4]  =	joint_handles_[4].getEffort();
+                robot_joint_motor_torques_.data[5]  =	joint_handles_[5].getEffort();
+                robot_joint_motor_torques_.data[6]  =	joint_handles_[6].getEffort();
+
+                // Stiffness
+
+                robot_stiffness_.data[0]  = stiff_cur_[0];  // Kx
+                robot_stiffness_.data[1]  = stiff_cur_[1];  // Ky
+                robot_stiffness_.data[2]  = stiff_cur_[2];  // Kz
+                robot_stiffness_.data[3]  = stiff_cur_[3];  // Kpitch
+                robot_stiffness_.data[4]  = stiff_cur_[4];  // Kyaw
+                robot_stiffness_.data[5]  = stiff_cur_[5];  // Kroll
+
+                // Damping
+
+                robot_damping_.data[0]  = damp_cur_[0];  // Bx
+                robot_damping_.data[1]  = damp_cur_[1];  // By
+                robot_damping_.data[2]  = damp_cur_[2];  // Bz
+                robot_damping_.data[3]  = damp_cur_[3];  // B_pitch
+                robot_damping_.data[4]  = damp_cur_[4];  // B_yaw
+                robot_damping_.data[5]  = damp_cur_[5];  // B_roll
+
+                // External Wrench
+
+                robot_commanded_forces_.data[0]  = wrench_cur_.force.x();   //Fx
+                robot_commanded_forces_.data[1]  = wrench_cur_.force.y();   //Fy
+                robot_commanded_forces_.data[2]  = wrench_cur_.force.z();   //Fz
+                robot_commanded_forces_.data[3]  = wrench_cur_.torque.x();  //Taux
+                robot_commanded_forces_.data[4]  = wrench_cur_.torque.y();  //Tauy
+                robot_commanded_forces_.data[5]  = wrench_cur_.torque.z();  //Tauz
+
+                // Estimated Forces
+
+                getExternalEstimatedForces_(wrench_external_estimated_);
+
+                robot_estimated_forces_.data[0]  = wrench_external_estimated_.force.x();   //Fx
+                robot_estimated_forces_.data[1]  = wrench_external_estimated_.force.y();   //Fy
+                robot_estimated_forces_.data[2]  = wrench_external_estimated_.force.z();   //Fz
+                robot_estimated_forces_.data[3]  = wrench_external_estimated_.torque.x();  //Taux
+                robot_estimated_forces_.data[4]  = wrench_external_estimated_.torque.y();  //Tauy
+                robot_estimated_forces_.data[5]  = wrench_external_estimated_.torque.z();  //Tauz
+
+                // Jacobian
+
+                jnt_to_jac_solver_->JntToJac(joint_positions_, jacobian_);
+
+                robot_jacobian_.data[0]=jacobian_(0,0);
+                robot_jacobian_.data[1]=jacobian_(0,1);
+                robot_jacobian_.data[2]=jacobian_(0,2);
+                robot_jacobian_.data[3]=jacobian_(0,3);
+                robot_jacobian_.data[4]=jacobian_(0,4);
+                robot_jacobian_.data[5]=jacobian_(0,5);
+                robot_jacobian_.data[6]=jacobian_(0,6);
+                robot_jacobian_.data[7]=jacobian_(1,0);
+                robot_jacobian_.data[8]=jacobian_(1,1);
+                robot_jacobian_.data[9]=jacobian_(1,2);
+                robot_jacobian_.data[10]=jacobian_(1,3);
+                robot_jacobian_.data[11]=jacobian_(1,4);
+                robot_jacobian_.data[12]=jacobian_(1,5);
+                robot_jacobian_.data[13]=jacobian_(1,6);
+                robot_jacobian_.data[14]=jacobian_(2,0);
+                robot_jacobian_.data[15]=jacobian_(2,1);
+                robot_jacobian_.data[16]=jacobian_(2,2);
+                robot_jacobian_.data[17]=jacobian_(2,3);
+                robot_jacobian_.data[18]=jacobian_(2,4);
+                robot_jacobian_.data[19]=jacobian_(2,5);
+                robot_jacobian_.data[20]=jacobian_(2,6);
+                robot_jacobian_.data[21]=jacobian_(3,0);
+                robot_jacobian_.data[22]=jacobian_(3,1);
+                robot_jacobian_.data[23]=jacobian_(3,2);
+                robot_jacobian_.data[24]=jacobian_(3,3);
+                robot_jacobian_.data[25]=jacobian_(3,4);
+                robot_jacobian_.data[26]=jacobian_(3,5);
+                robot_jacobian_.data[27]=jacobian_(3,6);
+                robot_jacobian_.data[28]=jacobian_(4,0);
+                robot_jacobian_.data[29]=jacobian_(4,1);
+                robot_jacobian_.data[30]=jacobian_(4,2);
+                robot_jacobian_.data[31]=jacobian_(4,3);
+                robot_jacobian_.data[32]=jacobian_(4,4);
+                robot_jacobian_.data[33]=jacobian_(4,5);
+                robot_jacobian_.data[34]=jacobian_(4,6);
+                robot_jacobian_.data[35]=jacobian_(5,0);
+                robot_jacobian_.data[36]=jacobian_(5,1);
+                robot_jacobian_.data[37]=jacobian_(5,2);
+                robot_jacobian_.data[38]=jacobian_(5,3);
+                robot_jacobian_.data[39]=jacobian_(5,4);
+                robot_jacobian_.data[40]=jacobian_(5,5);
+                robot_jacobian_.data[41]=jacobian_(5,6);
+
+                // Publish on ROS
+                  pub_robot_data_.publish(robot_data_);
+
+                  pub_cart_imp_data_.publish(robot_data_);
+                        pub_cart_imp_pose_meters_.publish(robot_pose_meters_);
+                        pub_cart_imp_pose_mm_.publish(robot_pose_mm_);
+                        pub_cart_imp_pose_meters_rpy_rad_.publish(robot_pose_meters_rpy_rad_);
+                        pub_cart_imp_pose_mm_rpy_deg_.publish(robot_pose_mm_rpy_deg_);
+                        pub_cart_imp_joint_states_deg_.publish(robot_joint_states_deg_);
+                        pub_cart_imp_joint_states_rad_.publish(robot_joint_states_rad_);
+                        pub_cart_imp_joint_velocity_rads_.publish(robot_joint_velocity_rads_);
+                        pub_cart_imp_joint_velocity_degs_.publish(robot_joint_velocity_degs_);
+
+                        //pub_robot_joint_acceleration_radss_.publish(robot_joint_acceleration_radss_);
+                        //pub_robot_joint_acceleration_degss_.publish(robot_joint_acceleration_degss_);
+                        pub_cart_imp_joint_motor_torques_.publish(robot_joint_motor_torques_);
+                        pub_cart_imp_estimated_forces_.publish(robot_estimated_forces_);
+                        pub_cart_imp_commanded_forces_.publish(robot_commanded_forces_);
+                        pub_cart_imp_stiffness_.publish(robot_stiffness_);
+                        pub_cart_imp_damping_.publish(robot_damping_);
+
+                        pub_cart_imp_kdl_jacobian_.publish(robot_jacobian_);
+                        pub_cart_imp_kdl_cart_velocity_m_rad_.publish(robot_cartesian_velocity_m_rad_);
+                        pub_cart_imp_kdl_cart_velocity_mm_deg_.publish(robot_cartesian_velocity_mm_deg_);
+
+
+		 #if TRACE_CARTESIAN_IMPENDANCE_CONTROLLER_ACTIVATED
+			 trace_count_++;
+			 if (trace_count_%10000)
+			 {
+				ROS_INFO("-> stiffness -> X = %f, Y = %f, Z = %f, A = %f, B = %f, C = %f", kuka_cart_stiff_handle_.getX(), kuka_cart_stiff_handle_.getY(), kuka_cart_stiff_handle_.getZ(), kuka_cart_stiff_handle_.getA(), kuka_cart_stiff_handle_.getB(), kuka_cart_stiff_handle_.getC());
+				/*for (int i=0; i<7; i++)
+				{
+					ROS_INFO("Joint Pos(%d) = %f", i, joint_handles_[i].getPosition());
+				}*/
+			 }
+		 #endif
+	 }
+	 
+	 
+	 
+	 void SimpleCartesianImpedanceController::setCartesianPose(const std_msgs::Float64MultiArrayConstPtr& msg)
+	 {
+		#if TRACE_CARTESIAN_IMPENDANCE_CONTROLLER_ACTIVATED
+			ROS_INFO("SimpleCartesianImpedanceController: Start setCartesianPose of robot %s!",robot_namespace_.c_str());
+		#endif
+
+		if(msg->data.size()!=NUMBER_OF_FRAME_ELEMENTS)
+		{ 
+			ROS_ERROR_STREAM("SimpleCartesianImpedanceController: Dimension (of robot " << robot_namespace_.c_str() << ") of command (" << msg->data.size() << ") does not match number of DOF(" << NUMBER_OF_FRAME_ELEMENTS << ")! Not executing!");
+			return; 
+		}
+		
+		#if TRACE_CARTESIAN_IMPENDANCE_CONTROLLER_ACTIVATED
+			ROS_INFO("Get SimpleCartesianImpedanceController/setCartesianPose :");
+			ROS_INFO("[%.3f, %.3f, %.3f, %.3f",msg->data[0],msg->data[1],msg->data[2],msg->data[3]);
+			ROS_INFO("%.3f, %.3f, %.3f, %.3f",msg->data[4],msg->data[5],msg->data[6],msg->data[7]);
+			ROS_INFO("%.3f, %.3f, %.3f, %.3f",msg->data[8],msg->data[9],msg->data[10],msg->data[11]);
+			ROS_INFO("0, 0, 0, 1]");
+		#endif
+		
+		// 0: RXX, 1: RXY, 2: RXZ, 3: TX, 4: RYX, 5: RYY, 6: RYZ, 7: TY, 8: RZX, 9: RZY, 10: RZZ, 11: TZ
+		pose_cur_.M = KDL::Rotation(msg->data[0],msg->data[1],msg->data[2],msg->data[4],msg->data[5],msg->data[6],msg->data[8],msg->data[9],msg->data[10]);
+		pose_cur_.p = KDL::Vector(msg->data[3],msg->data[7],msg->data[11]);
+		
+	 }
+	 
+	 
+	 
+	  void SimpleCartesianImpedanceController::setCartesianWrench(const std_msgs::Float64MultiArrayConstPtr& msg)
+	  {
+		  #if TRACE_CARTESIAN_IMPENDANCE_CONTROLLER_ACTIVATED
+			ROS_INFO("SimpleCartesianImpedanceController: Start setCartesianWrench of robot %s!",robot_namespace_.c_str());
+		  #endif
+
+		 if(msg->data.size()!=NUMBER_OF_CART_DOFS)
+		 { 
+			ROS_ERROR_STREAM("SimpleCartesianImpedanceController: Dimension (of robot " << robot_namespace_.c_str() << ") of command (" << msg->data.size() << ") does not match number of DOF(" << NUMBER_OF_CART_DOFS << ")! Not executing!");
+			return; 
+		 }
+		 
+		 // 0: X, 1: Y, 2: Z, 3: A, 4: B, 5: C
+		 wrench_cur_.force = KDL::Vector(msg->data[0],msg->data[1],msg->data[2]);
+		 wrench_cur_.torque = KDL::Vector(msg->data[3],msg->data[4],msg->data[5]);
+		  
+	  }
+	 
+	 
+	 
+	 
+	 
+	 void SimpleCartesianImpedanceController::setCartesianStiffness(const std_msgs::Float64MultiArrayConstPtr& msg)
+	 {
+		#if TRACE_CARTESIAN_IMPENDANCE_CONTROLLER_ACTIVATED
+			ROS_INFO("SimpleCartesianImpedanceController: Start setCartesianStiffness of robot %s!",robot_namespace_.c_str());
+		#endif
+
+		if(msg->data.size()!=NUMBER_OF_CART_DOFS)
+		{ 
+			ROS_ERROR_STREAM("SimpleCartesianImpedanceController: Dimension (of robot " << robot_namespace_.c_str() << ") of command (" << msg->data.size() << ") does not match number of DOF(" << NUMBER_OF_CART_DOFS << ")! Not executing!");
+			return; 
+		}
+		
+		#if TRACE_CARTESIAN_IMPENDANCE_CONTROLLER_ACTIVATED
+			ROS_INFO("Get SimpleCartesianImpedanceController/setCartesianStiffness X=%f, Y=%f, Z=%f, A=%f, B=%f, C=%f",msg->data[0],msg->data[1],msg->data[2],msg->data[3],msg->data[4],msg->data[5]);
+		#endif
+		
+		// 0: X, 1: Y, 2: Z, 3: A, 4: B, 5: C
+		for (int i=0; i<NUMBER_OF_CART_DOFS; i++)
+		{
+			stiff_cur_[i] = msg->data[i];
+		}
+		
+	 }
+	 
+	 void SimpleCartesianImpedanceController::setCartesianDamping(const std_msgs::Float64MultiArrayConstPtr& msg)
+	 {
+		#if TRACE_CARTESIAN_IMPENDANCE_CONTROLLER_ACTIVATED
+			ROS_INFO("SimpleCartesianImpedanceController: Start setCartesianDamping of robot %s!",robot_namespace_.c_str());
+		#endif
+
+		if(msg->data.size()!=NUMBER_OF_CART_DOFS)
+		{ 
+			ROS_ERROR_STREAM("SimpleCartesianImpedanceController: Dimension (of robot " << robot_namespace_.c_str() << ") of command (" << msg->data.size() << ") does not match number of DOF(" << NUMBER_OF_CART_DOFS << ")! Not executing!");
+			return; 
+		}
+		
+		#if TRACE_CARTESIAN_IMPENDANCE_CONTROLLER_ACTIVATED
+			ROS_INFO("Get SimpleCartesianImpedanceController/setCartesianDamping X=%f, Y=%f, Z=%f, A=%f, B=%f, C=%f",msg->data[0],msg->data[1],msg->data[2],msg->data[3],msg->data[4],msg->data[5]);
+		#endif
+		
+		// 0: X, 1: Y, 2: Z, 3: A, 4: B, 5: C
+		// 0: X, 1: Y, 2: Z, 3: A, 4: B, 5: C
+		for (int i=0; i<NUMBER_OF_CART_DOFS; i++)
+		{
+			damp_cur_[i] = msg->data[i];
+		}
+		
+	 }
+	 
+     void SimpleCartesianImpedanceController::getExternalEstimatedForces_(KDL::Wrench& wrench)
+         {
+             wrench.force  = KDL::Vector(kuka_cart_wrench_handle_.getX(),kuka_cart_wrench_handle_.getY(),kuka_cart_wrench_handle_.getZ());
+             wrench.torque = KDL::Vector(kuka_cart_wrench_handle_.getA(),kuka_cart_wrench_handle_.getB(),kuka_cart_wrench_handle_.getC());
+         }
+
+	void SimpleCartesianImpedanceController::getCurrentPose_(KDL::Frame& frame)
+	{
+		 KDL::Rotation cur_R(kuka_cart_pose_handle_.getRXX(),
+							kuka_cart_pose_handle_.getRXY(),
+							kuka_cart_pose_handle_.getRXZ(),
+							kuka_cart_pose_handle_.getRYX(),
+							kuka_cart_pose_handle_.getRYY(),
+							kuka_cart_pose_handle_.getRYZ(),
+							kuka_cart_pose_handle_.getRZX(),
+							kuka_cart_pose_handle_.getRZY(),
+							kuka_cart_pose_handle_.getRZZ());
+							
+		KDL::Vector cur_T(kuka_cart_pose_handle_.getTX(),
+						  kuka_cart_pose_handle_.getTY(),
+						  kuka_cart_pose_handle_.getTZ());
+						  
+		frame = KDL::Frame(cur_R, cur_T);
+	 
+	}
+	 
+	 
+	void SimpleCartesianImpedanceController::fromKDLtoFRI_(const KDL::Frame& frame_in, std::vector<double>& vect_Pose_FRI_out)
+	{
+		assert(vect_Pose_FRI_out.size() == NUMBER_OF_FRAME_ELEMENTS);
+		vect_Pose_FRI_out[0] = frame_in.M.UnitX().x(); // RXX
+		vect_Pose_FRI_out[1] = frame_in.M.UnitY().x(); // RXY
+		vect_Pose_FRI_out[2] = frame_in.M.UnitZ().x(); // RXZ
+		vect_Pose_FRI_out[3] = frame_in.p.x(); // TX
+		vect_Pose_FRI_out[4] = frame_in.M.UnitX().y(); // RYX
+		vect_Pose_FRI_out[5] = frame_in.M.UnitY().y(); // RYY
+		vect_Pose_FRI_out[6] = frame_in.M.UnitZ().y(); // RYZ
+		vect_Pose_FRI_out[7] = frame_in.p.y(); // TY
+		vect_Pose_FRI_out[8] = frame_in.M.UnitX().z(); // RZX
+		vect_Pose_FRI_out[9] = frame_in.M.UnitY().z(); // RZY
+		vect_Pose_FRI_out[10] = frame_in.M.UnitZ().z(); // RZZ
+		vect_Pose_FRI_out[11] = frame_in.p.z(); // TZ
+
+	}
+	 
+	 
+	void SimpleCartesianImpedanceController::forwardCmdFRI_(const KDL::Frame& frame, const KDL::Stiffness& stiffness, const KDL::Stiffness& damping, const KDL::Wrench& wrench)
+	{
+	 // Transform a KDL frame to a 'FRI Pose vector' (Rotation && Translation)
+	 fromKDLtoFRI_(frame, cur_Pose_FRI_);
+	 
+	 // Set Cartesian Pose command
+	 kuka_cart_pose_handle_.setCommandRXX(cur_Pose_FRI_[0]);
+	 kuka_cart_pose_handle_.setCommandRXY(cur_Pose_FRI_[1]);
+	 kuka_cart_pose_handle_.setCommandRXZ(cur_Pose_FRI_[2]);
+	 kuka_cart_pose_handle_.setCommandTX(cur_Pose_FRI_[3]);
+	 
+	 kuka_cart_pose_handle_.setCommandRYX(cur_Pose_FRI_[4]);
+	 kuka_cart_pose_handle_.setCommandRYY(cur_Pose_FRI_[5]);
+	 kuka_cart_pose_handle_.setCommandRYZ(cur_Pose_FRI_[6]);
+	 kuka_cart_pose_handle_.setCommandTY(cur_Pose_FRI_[7]);
+	 
+	 kuka_cart_pose_handle_.setCommandRZX(cur_Pose_FRI_[8]);
+	 kuka_cart_pose_handle_.setCommandRZY(cur_Pose_FRI_[9]);
+	 kuka_cart_pose_handle_.setCommandRZZ(cur_Pose_FRI_[10]);
+	 kuka_cart_pose_handle_.setCommandTZ(cur_Pose_FRI_[11]);
+	 
+	 // Set Cartesian Stiffness command
+	 kuka_cart_stiff_handle_.setCommandX(stiffness[0]); 
+	 kuka_cart_stiff_handle_.setCommandY(stiffness[1]);
+	 kuka_cart_stiff_handle_.setCommandZ(stiffness[2]);
+	 kuka_cart_stiff_handle_.setCommandA(stiffness[3]); 
+	 kuka_cart_stiff_handle_.setCommandB(stiffness[4]);
+	 kuka_cart_stiff_handle_.setCommandC(stiffness[5]);
+	 
+	 // Set Cartesian Damping command
+	 kuka_cart_damp_handle_.setCommandX(damping[0]); 
+	 kuka_cart_damp_handle_.setCommandY(damping[1]);
+	 kuka_cart_damp_handle_.setCommandZ(damping[2]);
+	 kuka_cart_damp_handle_.setCommandA(damping[3]); 
+	 kuka_cart_damp_handle_.setCommandB(damping[4]);
+	 kuka_cart_damp_handle_.setCommandC(damping[5]);
+	 
+	 // Set Cartesian Wrench command 
+	 kuka_cart_wrench_handle_.setCommandX(wrench.force.x());
+	 kuka_cart_wrench_handle_.setCommandY(wrench.force.y());
+	 kuka_cart_wrench_handle_.setCommandZ(wrench.force.z());
+	 kuka_cart_wrench_handle_.setCommandA(wrench.torque.x());
+	 kuka_cart_wrench_handle_.setCommandB(wrench.torque.y());
+	 kuka_cart_wrench_handle_.setCommandC(wrench.torque.z());
+		 
+	}
+	
+	
+	void SimpleCartesianImpedanceController::publishCurrentPose(const KDL::Frame& f)
+    {
+        if (realtime_pose_pub_->trylock()) 
+        {
+            realtime_pose_pub_->msg_.header.stamp = ros::Time::now();
+            tf::poseKDLToMsg(f, realtime_pose_pub_->msg_.pose);
+            realtime_pose_pub_->unlockAndPublish();
+        }
+	}
+	 
+}
+
+PLUGINLIB_EXPORT_CLASS(kuka_lwr_controllers::SimpleCartesianImpedanceController, controller_interface::ControllerBase)

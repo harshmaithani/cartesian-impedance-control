@@ -1,0 +1,6 @@
+catkin_make
+
+source ./devel/setup.bash
+
+rosrun force-torque-sensor ftsensor_CLIENT
+

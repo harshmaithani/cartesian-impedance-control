@@ -1,0 +1,189 @@
+Resume de la plateforme
+=======================
+
+- Le dossier kuka_lwr_hw contient :
+
+-> le sous dossier 'lib_rt' contenant une librairie permettant de créer des thread RT Xenomai, de faire de la communication UDP, 
+de créer des Pipe RT permettant la communication entre Thread RT et thread Non RT. Elle contient aussi les définitions des structures de données propre à la FRI.
+Cette librairie a été volontairement compilée en mode 'STATIC' afin de contenir les bons appels systèmes Xenomai 3 définis 
+dans les paramètres de compilations du fichier cmake.
+-> le fichier 'thread_rt_communication_fri.cpp' contient la boucle de communication (via un Thread RT + respect du protocole FRI) avec un bras Kuka, 
+un 'Pipe RT' est aussi utilisé pour recevoir une commande calculée dans un process non RT (type ros_control) et d'envoyer la valeurs lue des joints.
+Pour l'instant il s'agit que de simulation ...
+-> le fichier 'kuka_lwr_hw_rt_node.cpp' qui est un noeud ros permettant pour l'instant de tester la relation thread RT et thread Non RT (en utilisant un Pipe RT
+qui simule un échange d'un tableau de joints kuka).
+-> un fichier launch 'kuka_lwr_hw.launch' qui lance l'exécutable du thread de communication RT et le noeud ros. ('roscore' est implicitement lancé !)
+-> un fichier bash 'rt_thread_communication.sh' dans le dossier 'script' qui permet de lancer le thread de communication RT via le launch 'kuka_lwr_hw.launch' 
+
+Remarque : cmake_modules regroupe un ensemble de modules cmake (comme eigen, numpy, ...)
+doc : https://github.com/ros/cmake_modules/blob/0.3-devel/README.md
+Il faut l'ajouter en tant que <build_depend> et <run_depend> dans le fichier 'package.xml'
+
+- Le dossier kuka_lwr_description contient :
+
+-> la description graphique d'un bras kuka, le dossier 'meshes' contient les fichier graphiques (format 'dae' et 'stl') représentant les 'link' et la 'base'.
+-> La représentation d'un bras kuka sous forme de macro URDF (c'est à dire 'Xacro'), est définit dans le dossier 'model':
+	-> 'kuka_lwr_utils.xacro' : définit 2 macros permettant le calcul d'un centre d'inertie.
+	-> 'kuka_lwr_materials.xacro' : définit les valeurs couleurs 'rgba' des 'materials' du kuka pour une représentation graphique sous gazebo.
+	-> 'kuka_lwr.gazebo.xacro' : définit une macro 'kuka_lwr_gazebo' reliée à un plugin gazebo 'libsingle_kuka_lwr_gazebo_plugin.so' 
+	permettant la définition des 'références gazebo' (gravité + couleurs matériaux)  pour les link du bras kuka.
+	-> 'kuka_lwr.transmission.xacro' : définit une macro 'kuka_lwr_transmission' permettant la définition pour chaque joint du bras kuka le type de transmission 
+	(son interface hardware).
+	cf la doc : http://docs.ros.org/indigo/api/hardware_interface/html/c++/classhardware__interface_1_1EffortJointInterface.html
+	Il est à noter que les interface 'EffortJointInterface' ou encore 'PositionJointInterface' sont rigoureusement indentiques.
+	cf la doc : http://docs.ros.org/indigo/api/hardware_interface/html/c++/joint__command__interface_8h_source.html
+	Il est aussi noté que seule l'interface de type effort est supportée à ce jour par le plugin gazebo_ros_control. (Currently only effort interfaces are implemented)
+	
+	-> 'kuka_lwr.gazebo.xacro' : définit la macro 'kuka_lwr_gazebo' qui décrit pour le simulateur 'gazebo' un bras kuka.
+	Cette macro appelle la macro 'kuka_lwr_gazebo' afin de relier cette définition au plugin 'gazebo' nommé 'libsingle_kuka_lwr_gazebo_plugin.so'.
+	-> 'kuka_lwr_real_urdf.xacro' : définit la macro 'kuka_lwr' qui décrit un bras kuka pour une utilisation réelle (c'est à dire reliée au robot).
+
+- Le dossier pantilt_description contient :
+
+-> la description graphique d'un système caméra 'pan tilt', le dossier 'meshes' contient les fichier graphiques (format 'dae' et 'stl') représentant les 'link' et la 'base'.
+
+- Le dossier single_kuka_lwr_gazebo_plugin contient :
+-> le fichier kuka_lwr_gazebo_plugin.cpp 
+
+Complements:
+-> les joints limits (et soft limits) et interfaces :
+https://github.com/ros-controls/ros_control/wiki/joint_limits_interface
+
+
+
+===================================== LANCEMENTS ================================================================================
+
+Lancement rtnet :
+_________________
+
+sudo ros_ifma_platform_rt_ws/src/scripts_rt_net/rtnet_sigma_kuka.sh start
+ou bien sh ros_ifma_platform_rt_ws/src/scripts_rt_net/rtnet_sigma_kuka.sh start
+
+Lancement threads RT communication FRI :
+________________________________________
+
+./ros_ifma_platform_rt_ws/devel/lib/xenomai_rt/real_left_thread_rt_communication_fri
+./ros_ifma_platform_rt_ws/devel/lib/xenomai_rt/real_right_thread_rt_communication_fri
+
+Lancement ros control + gazebo :
+________________________________
+
+roslaunch kuka_lwr_real platform.launch
+
+Lancement d'un topic :
+______________________
+
+rostopic pub -1 /kuka_lwr_left/kuka_group_command_controller/command std_msgs/Float64MultiArray "data: [0.9,0.9,0.5,0.5,0.3,0.5,0.8]"
+
+=====================================  CHANGEMENTS =======================================================================================
+
+Changer le controlleur ros :
+___________________________
+
+Modifier le fichier ros_ifma_platform_rt_ws/src/kuka_lwr_real/launch/platform.launch
+Le paramètre : <arg name="controllers" default="kuka_group_command_controller" />
+
+Changer le fichier xacro pour utiliser uniquement un bras :
+___________________________________________________________
+
+Modifier le fichier ros_ifma_platform_rt_ws/src/kuka_lwr_gazebo/robot/platform_ifma_real.urdf.xacro
+commenter les balises : 
+	<!-- Right Arm -->
+	<xacro:kuka_lwr parent="base_link" name="kuka_lwr_right" namespace="kuka_lwr_right">
+		<origin xyz="-0.17 0 1.45" rpy="0 ${pi/2.0} ${pi}"/>
+	</xacro:kuka_lwr>
+
+
+Le plugin pour gazebo se trouve définit ici :
+_____________________________________________
+
+ros_ifma_platform_rt_ws/src/kuka_lwr_description/model/kuka_lwr_real.gazebo.xacro
+
+
+Ordre de lancement pour expérimentations en mode réel :
+------------------------------------------------------
+
+1- Allumer ordinateur
+
+2- Une fois l'ordinateur allumé : Allumer le KRC
+
+3- lancer le script RTnet
+cd /home/ifma/projects/ros_sigma_platform_rt_ws/src/scripts_rt_net
+chmod +x ./rtnet_sigma_kuka.sh
+sudo ./rtnet_sigma_kuka.sh start
+
+3bis- Lancer le fichier FRI côté KRC
+
+4- lancer le launch de la plateforme
+cd /home/ifma/projects/ros_ifma_platform_rt_ws
+source devel/setup.bash
+roslaunch kuka_lwr_real platform.launch
+
+5- lancer l'exécutable de communication RT avec le KRC
+cd /home/ifma/projects/ros_ifma_platform_rt_ws/devel/lib/xenomai_rt
+./real_left_thread_rt_communication_fri
+
+
+6- lancer un rostopic
+cd /home/ifma/projects/ros_ifma_platform_rt_ws
+source devel/setup.bash
+rostopic pub -1 /kuka_lwr_left/kuka_group_command_controller/command std_msgs/Float64MultiArray "data: [0.5,0.3,0.2,0.2,0.6,0.5,0.2]"
+
+Lorsque sur le KRC, il y a une erreur du type friStart(error 2), il faut redémarrer le KRC !!!
+
+7- Bouger le pantilt
+roslaunch pan_tilt_real pan_tilt_real.launch
+rostopic pub -1 /pantilt/pan_tilt_position_controller/command std_msgs/Float64MultiArray "data: [0.5,0.5,0.5,0.5]"
+
+En mode simulation :
+--------------------
+
+cd /home/ifma/projects/ros_ifma_platform_rt_ws
+source devel/setup.bash
+roslaunch kuka_lwr_gazebo platform.launch
+
+rostopic pub -1 /kuka_lwr_left/kuka_one_task_inverse_kinematics/command kuka_lwr_controllers/PoseRPY '{id: 1, position: {x: -0.4, y: 0.3, z: 0.9}}'
+
+config reseau pour ordinateur utilisateur deporte :
+--------------------------------------------------
+
+Cote Ordinateur utilisateur :
+
+1- l'adresse ip de l'ordinateur doit être IMPERATIVEMENT 192.168.100.105
+2- ajouter une route pour communiquer avec le ros master (dans le cas ou l'ordinateur a plusieurs cartes reseau, ici on precise de passer par eth0)
+sudo route add -net 192.168.100.103 dev eth0
+3- Ajouter l'adresse de la machine dell (de nom ifma-kuka-test) dans le fichier /etc/hosts
+sudo nano /etc/hosts
+ajouter la ligne -> 192.168.100.103 ifma-kuka-test
+4- Dans CHAQUE FENETRE TERMINAL, il faut positionner une variable d'environnement :
+export ROS_MASTER_URI=http://ifma-kuka-test:11311
+
+Code Machine Dell kuka :
+
+1- lancer le script qui automatiquement definit la config reseau :
+cd /projects/ros_sigma_platform_rt_ws/src/scripts_rt_net
+sh ./net_pan_tilt_sigma.sh start
+2- Vérifier (ou ajouter) que l'adresse ip de la machine ordinateur utilisateur se trouve dans le fichier /etc/hosts
+192.168.100.105 nom_ordinateur
+
+
+Switch de controllers ROS:
+--------------------------
+-> Dans le launch il y a des controleurs chargés et démarrés et d'autres chargés et stoppés (via le paramètre --stopped)
+rosservice call /kuka_lwr_left/controller_manager/list_controllers (donne la liste de controllers et leur état courant)
+
+-> Pour démarrer un controleur :
+ rosservice call /kuka_lwr_left/controller_manager/switch_controller "{start_controllers: ['kuka_group_command_controller'], stop_controllers: [], strictness: 2}"
+ 
+-> Pour arrêter un controleur :
+rosservice call /kuka_lwr_left/controller_manager/switch_controller "{start_controllers: [], stop_controllers: ['kuka_group_command_controller'], strictness: 2}"
+
+
+
+
+
+
+
+
+
+

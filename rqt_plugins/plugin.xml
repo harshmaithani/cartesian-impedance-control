@@ -1,0 +1,32 @@
+<library path="lib/librqt_plugins">
+  <class name="platform_sigma_plugins_ns/ControllerManagerPlugin" type="platform_sigma_plugins_ns::ControllerManagerPlugin" base_class_type="rqt_gui_cpp::Plugin">
+    <description>
+      A C++ GUI plugin to manage controllers of platform sigma.
+    </description>
+    <qtgui>
+      <group>
+        <label>Platform Sigma Plugins</label>
+        <icon type="theme">folder</icon>
+        <statustip>Plugins of Platform Sigma.</statustip>
+      </group>
+      <label>Controller Manager</label>
+      <icon type="theme">image-x-generic</icon>
+      <statustip>A C++ GUI Controller Manager.</statustip>
+    </qtgui>
+  </class>
+  <class name="platform_sigma_plugins_ns/JointPositionPlugin" type="platform_sigma_plugins_ns::JointPositionPlugin" base_class_type="rqt_gui_cpp::Plugin">
+    <description>
+      A C++ GUI plugin to send joint position to platform sigma.
+    </description>
+    <qtgui>
+      <group>
+        <label>Platform Sigma Plugins</label>
+        <icon type="theme">folder</icon>
+        <statustip>Plugins of Platform Sigma.</statustip>
+      </group>
+      <label>Joint Position</label>
+      <icon type="theme">image-x-generic</icon>
+      <statustip>A C++ GUI for sending joint position to kuka lwr4.</statustip>
+    </qtgui>
+  </class>
+</library>

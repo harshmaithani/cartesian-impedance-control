@@ -1,0 +1,27 @@
+<launch>
+		<arg name="use_left_arm" default="false"/>
+		<arg name="use_right_arm" default="false"/>
+		
+		<group if="$(arg use_left_arm)">
+			<group ns="kuka_lwr_left">
+				<!-- run Rviz and load the default config to see the state of the move_group node -->
+				<include file="$(find kuka_lwr_moveit)/launch/moveit_rviz_kuka_lwr_left.launch">
+					<arg name="config" value="true"/>
+					<arg name="debug" value="false"/>
+				</include>
+			</group>
+		</group>
+		
+		<group if="$(arg use_right_arm)">
+			<group ns="kuka_lwr_right">
+				<!-- run Rviz and load the default config to see the state of the move_group node -->
+				<include file="$(find kuka_lwr_moveit)/launch/moveit_rviz_kuka_lwr_right.launch">
+					<arg name="config" value="true"/>
+					<arg name="debug" value="false"/>
+				</include>
+			</group>
+		</group>
+		
+		
+		
+</launch>

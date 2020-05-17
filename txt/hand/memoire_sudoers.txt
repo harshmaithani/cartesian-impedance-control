@@ -1,0 +1,63 @@
+Mettre des droits root pour un utilisateur (afin de ne pas demander le pwd) sur certaines commandes
+===================================================================================================
+
+Créer un utilisateur : (https://doc.ubuntu-fr.org/adduser)
+----------------------
+
+sudo adduser student
+(pwd = student)
+
+
+Modifier sudoers : (https://doc.ubuntu-fr.org/sudoers)
+------------------
+
+sudo visudo
+
+Chemin d'une commande utilisee :
+which ifconfig
+
+-> /sbin/ifconfig
+
+Ajouter cette ligne :
+student ALL=(root) NOPASSWD: /sbin/ifconfig,/sbin/route,/sbin/lsmod,/sbin/rmmod,/sbin/modprobe,/sbin/insmod
+
+
+
+Comment récupérer les menus/sous mennus "Applications" pour l'utilisateur "student"
+===================================================================================
+
+Penser à modifier le .bshrc de 'student' pour l'environnement de ros.
+
+Copier les menus applications :
+
+sous le compte utilisateur student (donner des droits à other sur dir applications)
+cd ~/.local/share
+chmod -R o+rwx applications
+chmod -R o+rwx desktop-directories
+
+sous le compte utilisateur hand
+
+cp /home/hand/.local/share/applications/*.desktop /home/student/.local/share/applications
+
+cp /home/hand/.local/share/desktop-directories/*.directory /home/student/.local/share/desktop-directories
+
+sudo chown student /home/student/.local/share/applications/*.desktop
+sudo chgrp student /home/student/.local/share/applications/*.desktop
+
+
+sudo chown student /home/student/.local/share/desktop-directories/*.directory
+sudo chgrp student /home/student/.local/share/desktop-directories/*.directory
+
+sauvegarder sur le Bureau par exemple de fichier .config/menus/gnome-flashback-applications.menu de 'hand'
+
+
+sous le compte 'student' :
+modifier le fichier .config/menus/gnome-flashback-applications.menu
+Pour ajouter les .directory et .desktop
+
+
+
+Attention: si création de lanceur sur le barre en haut, pour le supprimer : AltGr + Alt + clic droit + supprimer ...
+
+
+

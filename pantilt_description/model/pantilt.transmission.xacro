@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+
+	<xacro:property name="InterfacePosition" value="PositionJointInterface"/>
+	<xacro:property name="InterfaceEffort" value="EffortJointInterface"/>
+
+	<xacro:macro name="pantilt_transmission" params="name">
+
+		<transmission name="${name}_trans1">
+			<type>transmission_interface/SimpleTransmission</type>
+			<joint name="${name}_pivot1">
+				<hardwareInterface>${InterfacePosition}</hardwareInterface>
+			</joint>
+			<actuator name="${name}_motor1">
+				<hardwareInterface>${InterfacePosition}</hardwareInterface>
+				<mechanicalReduction>1</mechanicalReduction>
+			</actuator>
+		</transmission>
+
+		<transmission name="${name}_trans2">
+			<type>transmission_interface/SimpleTransmission</type>
+			<joint name="${name}_pivot2">
+				<hardwareInterface>${InterfacePosition}</hardwareInterface>
+			</joint>
+			<actuator name="${name}_motor2">
+				<hardwareInterface>${InterfacePosition}</hardwareInterface>
+				<mechanicalReduction>1</mechanicalReduction>
+			</actuator>
+		</transmission>
+
+		<transmission name="${name}_trans3">
+			<type>transmission_interface/SimpleTransmission</type>
+			<joint name="${name}_pivot3">
+				<hardwareInterface>${InterfacePosition}</hardwareInterface>
+			</joint>
+			<actuator name="${name}_motor3">
+				<hardwareInterface>${InterfacePosition}</hardwareInterface>
+				<mechanicalReduction>1</mechanicalReduction>
+			</actuator>
+		</transmission>
+
+		<transmission name="${name}_trans4">
+			<type>transmission_interface/SimpleTransmission</type>
+			<joint name="${name}_pivot4">
+				<hardwareInterface>${InterfacePosition}</hardwareInterface>
+			</joint>
+			<actuator name="${name}_motor4">
+				<hardwareInterface>${InterfacePosition}</hardwareInterface>
+				<mechanicalReduction>1</mechanicalReduction>
+			</actuator>
+		</transmission>
+
+	</xacro:macro>
+
+</robot>

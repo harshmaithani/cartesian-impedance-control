@@ -1,0 +1,247 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="pantilt_robot">
+
+	<!-- utils /-->
+	<xacro:include filename="$(find pantilt_description)/model/pantilt_materials.xacro" />
+
+	<!-- gazebo and transmission models /-->
+	<xacro:include filename="$(find pantilt_description)/model/pantilt.gazebo.xacro"/>
+	<xacro:include filename="$(find pantilt_description)/model/pantilt.transmission.xacro"/>
+
+	<!-- properties /-->
+	<xacro:property name="M_PI" value="3.1415926535897931"/>
+	<xacro:property name="base_mass" value="2.0"/>
+	<xacro:property name="link_mass" value="2.0"/>
+	<xacro:property name="velocity_scale" value="1"/>
+	<xacro:property name="effort_scale" value="1"/>
+
+	<xacro:property name="max_stiffness" value="5000"/>
+	<xacro:property name="min_stiffness" value="0"/>
+	<xacro:property name="rate_stiffness" value="20000"/> <!-- reflex to stiffness -->
+	
+
+	<!-- URDF model -->
+	<xacro:macro name="pantilt" params="parent name namespace *origin">
+
+		<!-- Fixed bati to the trunk -->
+		<joint name="${parent}_${name}_base_joint" type="fixed">
+			<insert_block name="origin"/>
+			<origin xyz="0 0 0" rpy="0 0 0"/>
+			<parent link="${parent}"/>
+			<child link="${name}_bati"/>
+		</joint>	
+
+		<!-- bati -->
+		<link name="${name}_bati">
+
+			<collision>
+				<origin xyz="0 0 0" rpy="0 0 0" /> 
+				<geometry>
+					<box size="0.20 0.20 0.1"/>
+				</geometry>
+			</collision>
+
+			<inertial>
+				<mass value="5.0"/>
+				<origin rpy="0 0 0" xyz="0 0 0"/>
+				<inertia ixx="0.01"
+		     			 iyy="0.01"
+					 izz="0.01"
+		     			 ixy="0" 
+		     			 iyz="0"
+		     			 ixz="0"/>
+			</inertial>
+
+			<visual>
+				<origin xyz="0 0 0" rpy="0 0 0" /> 
+				<geometry>
+					<mesh filename="package://pantilt_description/meshes/bati.stl"/>
+				</geometry>
+				<material name="DarkGrey" />
+			</visual>
+			<!--visual>
+				<origin xyz="0 0 0.1" rpy="0 0 0" /> 
+				<geometry>
+					<box size="0.20 0.20 0.1"/>
+				</geometry>
+				<material name="DarkGrey" />
+			</visual-->
+
+		</link>
+
+		<!-- P1 -->
+		<link name="${name}_P1">
+
+			<collision>
+				<origin xyz="0 0 0.10" rpy="0 0 0"/>
+				<geometry>
+					<sphere radius="0.05"/>
+				</geometry>
+			</collision>
+
+			<inertial>
+				<mass value="5.0"/>
+				<origin rpy="0 0 0" xyz="0 0 0"/>
+				<inertia ixx="0.01"
+		     			 iyy="0.01"
+					 izz="0.01"
+		     			 ixy="0" 
+		     			 iyz="0"
+		     			 ixz="0"/>
+			</inertial>
+
+			<visual>
+				<origin xyz="0 0 0" rpy="0 0 0" /> 
+				<geometry>
+					<mesh filename="package://pantilt_description/meshes/P1.stl"/>
+				</geometry>
+				<material name="DarkGrey" />
+			</visual>
+			<!--visual>
+				<origin xyz="0 0 0.10" rpy="0 0 0"/>
+				<geometry>
+					<sphere radius="0.05"/>
+				</geometry>
+			</visual-->
+
+		</link>
+
+		<joint name="${name}_pivot1" type="revolute">
+			<parent link="${name}_bati"/>
+			<child link="${name}_P1"/>
+			<origin xyz="0 0 0.2" rpy="0 0 0" />
+			<axis xyz="0 0 1" />
+			<limit effort="30" velocity="3.1415" lower="-2.8" upper="2.7" />
+		</joint>
+
+		<!-- P2 -->
+		<link name="${name}_P2">
+
+			<collision>
+				<origin xyz="0 0 0.10" rpy="0 0 0"/>
+				<geometry>
+					<sphere radius="0.02"/>
+				</geometry>
+			</collision>
+
+			<inertial>
+				<mass value="5.0"/>
+				<origin rpy="0 0 0" xyz="0 0 0"/>
+				<inertia ixx="0.01"
+		     			 iyy="0.01"
+					 izz="0.01"
+		     			 ixy="0" 
+		     			 iyz="0"
+		     			 ixz="0"/>
+			</inertial>
+
+			<visual>
+				<origin xyz="0 0 0" rpy="0 0 0" /> 
+				<geometry>
+					<mesh filename="package://pantilt_description/meshes/P2.stl"/>
+				</geometry>
+				<material name="DarkGrey" />
+			</visual>
+			<!--visual>
+				<origin xyz="0 0 0.10" rpy="0 0 0"/>
+				<geometry>
+					<sphere radius="0.02"/>
+				</geometry>
+			</visual-->
+
+		</link>
+
+		<joint name="${name}_pivot2" type="revolute">
+			<parent link="${name}_P1"/>
+			<child link="${name}_P2"/>
+			<!-- <limit lower="0" upper="${90 * pi / 180}" /> -->
+			<origin xyz="0 0 0.2" rpy="0 0 0" />
+			<axis xyz="1 0 0" />
+			<dynamics friction="1000.0" damping="0.1"/>
+			<limit effort="30" velocity="3.1415" lower="-1.57" upper="1.52" />
+		</joint>
+
+		<!-- cam1 -->
+		<link name="${name}_cam1">
+
+			<collision>
+				<origin xyz="0 0 0" rpy="0 0 0" /> 
+				<geometry>
+					<mesh filename="package://pantilt_description/meshes/cam.stl"/>
+				</geometry>
+			</collision>
+
+			<inertial>
+				<mass value="5.0"/>
+				<origin rpy="0 0 0" xyz="0 0 0"/>
+				<inertia ixx="0.01"
+		     			 iyy="0.01"
+					 izz="0.01"
+		     			 ixy="0" 
+		     			 iyz="0"
+		     			 ixz="0"/>
+			</inertial>
+
+			<visual>
+				<origin xyz="0 0 0" rpy="0 0 0" /> 
+				<geometry>
+					<mesh filename="package://pantilt_description/meshes/cam.stl"/>
+				</geometry>
+				<material name="LightGrey" />
+			</visual>
+
+		</link>
+
+		<joint name="${name}_pivot3" type="revolute">
+			<parent link="${name}_P2"/>
+			<child link="${name}_cam1"/>
+			<origin xyz="0.24 0 0.14" rpy="0 0 0" />
+			<axis xyz="0 0 -1" />
+			<limit effort="30" velocity="3.1415" lower="-4.1" upper="1.15" />
+		</joint>
+
+		<!-- cam2 -->
+		<link name="${name}_cam2">
+
+			<collision>
+				<origin xyz="0 0 0" rpy="0 0 0" /> 
+				<geometry>
+					<mesh filename="package://pantilt_description/meshes/cam.stl"/>
+				</geometry>
+			</collision>
+
+			<inertial>
+				<mass value="5.0"/>
+				<origin rpy="0 0 0" xyz="0 0 0"/>
+				<inertia ixx="0.01"
+		     			 iyy="0.01"
+					 izz="0.01"
+		     			 ixy="0" 
+		     			 iyz="0"
+		     			 ixz="0"/>
+			</inertial>
+
+			<visual>
+				<origin xyz="0 0 0" rpy="0 0 0" /> 
+				<geometry>
+					<mesh filename="package://pantilt_description/meshes/cam.stl"/>
+				</geometry>
+				<material name="LightGrey" />
+			</visual>
+
+		</link>
+
+		<joint name="${name}_pivot4" type="revolute">
+			<parent link="${name}_P2"/>
+			<child link="${name}_cam2"/>
+			<origin xyz="-0.22 0 0.14" rpy="0 0 0" />
+			<axis xyz="0 0 -1" />
+			<limit effort="30" velocity="3.1415" lower="-1.1" upper="4.0" />
+		</joint>
+
+		<xacro:pantilt_gazebo name="${name}" namespace="${namespace}"/>
+		<xacro:pantilt_transmission name="${name}"/>
+
+	</xacro:macro>
+
+</robot>

@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+
+	<xacro:macro name="trunk_gazebo" params="">
+
+		<gazebo reference="trunk_link">
+			<static>true</static>
+		</gazebo>
+
+	</xacro:macro>
+
+</robot>

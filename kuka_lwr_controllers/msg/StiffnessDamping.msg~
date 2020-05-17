@@ -1,0 +1,2 @@
+std_msgs/Float64MultiArray stiffness
+std_msgs/Float64MultiArray damping

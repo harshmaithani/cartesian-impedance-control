@@ -1,0 +1,16 @@
+<library path="src">
+  <class name="Wrist Sensor Viewer" type="wrist_sensor_interface.wrist_module.WristSensor" base_class_type="rqt_gui_py::Plugin">
+    <description>
+      An example Python GUI plugin to create a great user interface.
+    </description>
+    <qtgui>
+      <group>
+	  <label>Barrett Hand Sensor</label>
+	  <icon type="theme">folder</icon>
+      </group>
+      <label>Wrist sensor Interface</label>
+      <icon type="theme">applications-utilities</icon>
+      <statustip>Great user interface to provide service.</statustip>
+    </qtgui>
+  </class>
+</library>

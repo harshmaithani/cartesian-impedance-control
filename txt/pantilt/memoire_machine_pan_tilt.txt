@@ -1,0 +1,111 @@
+Ros :
+=====
+
+-> Pas de chargement de 'robot_state' en plugin de rviz !!
+sudo apt-get install ros-indigo-moveit
+
+
+Config réseau :
+===============
+sudo lshw -C network
+
+eth0 -> NetXtreme BCM5722 Gigabit Ethernet PCI Express,  pci@0000:04:00.0, numéro de série: 00:0a:f7:93:2f:f9, driver=tg3
+eth1 -> Ethernet Connection (2) I219-LM, pci@0000:00:1f.6, numéro de série: 48:4d:7e:ac:cf:9c, driver=e1000e
+eth2 -> 82571EB Gigabit Ethernet Controller, pci@0000:05:00.0, numéro de série: 68:05:ca:1c:d7:c8, driver=e1000e
+eth3 -> 82571EB Gigabit Ethernet Controller, pci@0000:05:00.1, numéro de série: 68:05:ca:1c:d7:c9, driver=e1000e
+
+eth1 -> On Board, connexion internet
+eth0 -> connexion pan tilt
+eth3 -> connexion switch
+
+Nouvelle config :
+=================
+
+sudo lshw -C network
+
+eth2 -> 82571EB Gigabit Ethernet Controller, pci@0000:07:00.0, 68:05:ca:1c:d7:c8, e1000e
+eth3 -> 82571EB Gigabit Ethernet Controller, pci@0000:07:00.1, 68:05:ca:1c:d7:c9, e1000e
+eth1 -> Ethernet Connection (2) I219-LM, pci@0000:00:1f.6, 48:4d:7e:ac:cf:9c, e1000e
+
+eth1 -> On board, connexion internet
+eth3 -> connexion pan tilt
+eth2 -> connexion switch
+
+Lancer le script de config reseau au boot de la machine :
+=========================================================
+-> copier le fichier net_pan_tilt_sigma en sudo dans le dossier /etc/init.d
+cd /etc/init.d
+sudo chmod +x net_pan_tilt_sigma.sh
+sudo update-rc.d net_pan_tilt_sigma.sh defaults 99
+
+Enlever le script :
+===================
+sudo update-rc.d -f net_pan_tilt_sigma.sh remove
+
+Lancer ROS pan_tilt :
+=====================
+
+cd /home/pantilt/projects/catkin_sigma_ws
+source devel/setup.bash
+
+roslaunch pan_tilt_real pan_tilt_real.launch
+rostopic pub -1 /pantilt/pan_tilt_position_controller/command std_msgs/Float64MultiArray "data: [0.5,0.5,0.5,0.5]"
+
+config reseau pour ordinateur utilisateur deporte :
+===================================================
+
+Cote Machine utilisateur :
+
+1- l'adresse ip de l'ordinateur doit être IMPERATIVEMENT 192.168.100.105
+2- ajouter une route pour communiquer avec le ros master (dans le cas ou l'ordinateur a plusieurs cartes reseau, ici on precise de passer par eth0)
+par ex : sudo route add -net 192.168.100.103 dev eth0
+3- Ajouter l'adresse de la machine 'Pan Tilt' (de nom pantilt-OptiPlex-7040) dans le fichier /etc/hosts
+sudo nano /etc/hosts
+ajouter la ligne -> 192.168.100.103 pantilt-OptiPlex-7040
+4- Dans CHAQUE FENETRE TERMINAL, il faut positionner une variable d'environnement :
+export ROS_MASTER_URI=http://pantilt-OptiPlex-7040:11311
+
+Code Machine 'Pan Tilt' :
+
+1- le script de config reseau est lancé automatiquement via /etc/init.d 
+2- Vérifier (ou ajouter) que l'adresse ip de la machine ordinateur utilisateur se trouve dans le fichier /etc/hosts
+192.168.100.105 nom_ordinateur
+
+Creer un lanceur :
+==================
+click droit sur le menu "Application" puis "nouveau menu" puis "nouvel element"
+Pour le nouvel element, spécifier le chemin du script bash et cocher la propriete "Launch in Terminal ?"
+Le script bash du lanceur se trouve ici : /home/pantilt/projects/catkin_sigma_ws/script_lanceur/lanceur_pan_tilt.sh
+ne pas oublier de faire un chmod +x lanceur_pan_tilt.sh
+
+
+cf : https://forum.ubuntu-fr.org/viewtopic.php?id=1586501
+
+
+
+=====================================================================================
+Suite à pb d'accès aux data via un roscore distant
+
+Sur la machine client (par exemple pantilt) faire :
+
+Dans /etc/hosts mettre l'adresse IP de la machine des bras
+192.168.100.123 ifma-kuka-test
+
+Dans une fenêtre terminal 
+export ROS_MASTER_URI=http://ifma-kuka-test:11311
+rostopic list
+rostopic echo /tf
+
+
+Sur la machine ou on lance le roscore (par exemple la machine ifma-kuka-test) qui dispose de l'adresse ip 192.168.100.123 sur l'eth3 :
+export ROS_IP=192.168.100.123
+roslaunch kuka_lwr_real platform....launch
+
+
+
+
+
+
+
+
+

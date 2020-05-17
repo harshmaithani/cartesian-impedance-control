@@ -1,0 +1,106 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+
+	<xacro:macro name="pantilt_gazebo" params="name namespace">
+
+		<gazebo>
+			<plugin name="pantilt_gazebo_ros_control" filename="libgazebo_ros_control.so">
+				<robotNamespace>${namespace}</robotNamespace>
+			</plugin>
+		</gazebo>
+
+		<gazebo reference="${name}_bati">
+			<gravity>true</gravity>
+			<material>Gazebo/Grey</material>
+			<selfCollide>true</selfCollide>
+		</gazebo>
+
+		<gazebo reference="${name}_P1">
+			<gravity>true</gravity>
+			<material>Gazebo/Grey</material>
+			<selfCollide>true</selfCollide>
+		</gazebo>
+
+		<gazebo reference="${name}_P2">
+			<gravity>true</gravity>
+			<material>Gazebo/Grey</material>
+			<selfCollide>true</selfCollide>
+		</gazebo>
+
+		<gazebo reference="${name}_cam1">
+			<gravity>true</gravity>
+			<material>Gazebo/Blue</material>
+			<selfCollide>true</selfCollide>
+			<sensor type="camera" name="camera1">
+			      <visualize>1</visualize>
+			      <pose>0 0 -0.095 0 0 1.57</pose>
+			      <update_rate>30.0</update_rate>
+			      <camera name="head1">
+				<horizontal_fov>1.3962634</horizontal_fov>
+				<image>
+				  <width>800</width>
+				  <height>800</height>
+				  <format>R8G8B8</format>
+				</image>
+				<clip>
+				  <near>0.02</near>
+				  <far>300</far>
+				</clip>
+			      </camera>
+			      <plugin name="camera1_controller" filename="libgazebo_ros_camera.so">
+				<alwaysOn>true</alwaysOn>
+				<updateRate>0.0</updateRate>
+				<cameraName>pantilt/camera1</cameraName>
+				<imageTopicName>image_raw</imageTopicName>
+				<cameraInfoTopicName>camera_info</cameraInfoTopicName>
+				<frameName>camera_link</frameName>
+				<hackBaseline>0.07</hackBaseline>
+				<distortionK1>0.0</distortionK1>
+				<distortionK2>0.0</distortionK2>
+				<distortionK3>0.0</distortionK3>
+				<distortionT1>0.0</distortionT1>
+				<distortionT2>0.0</distortionT2>
+			      </plugin>
+			</sensor>
+		</gazebo>
+
+		<gazebo reference="${name}_cam2">
+			<gravity>true</gravity>
+			<material>Gazebo/Blue</material>
+			<selfCollide>true</selfCollide>
+			<sensor type="camera" name="camera2">
+			      <visualize>1</visualize>
+			      <pose>0 0 -0.095 0 0 1.57</pose>
+			      <update_rate>30.0</update_rate>
+			      <camera name="head2">
+				<horizontal_fov>1.3962634</horizontal_fov>
+				<image>
+				  <width>800</width>
+				  <height>800</height>
+				  <format>R8G8B8</format>
+				</image>
+				<clip>
+				  <near>0.02</near>
+				  <far>300</far>
+				</clip>
+			      </camera>
+			      <plugin name="camera2_controller" filename="libgazebo_ros_camera.so">
+				<alwaysOn>true</alwaysOn>
+				<updateRate>0.0</updateRate>
+				<cameraName>pantilt/camera2</cameraName>
+				<imageTopicName>image_raw</imageTopicName>
+				<cameraInfoTopicName>camera_info</cameraInfoTopicName>
+				<frameName>camera_link</frameName>
+				<hackBaseline>0.07</hackBaseline>
+				<distortionK1>0.0</distortionK1>
+				<distortionK2>0.0</distortionK2>
+				<distortionK3>0.0</distortionK3>
+				<distortionT1>0.0</distortionT1>
+				<distortionT2>0.0</distortionT2>
+			      </plugin>
+			</sensor>
+		</gazebo>
+
+	</xacro:macro>
+
+</robot>

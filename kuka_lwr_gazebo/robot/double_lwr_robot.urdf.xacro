@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="double_lwr_robot">
+	
+  <!-- define PI variable -->
+  <xacro:property name="pi" value="3.1415926535897931" />
+
+  <!-- Include kuka lwr model -->
+  <xacro:include filename="$(find kuka_lwr_description)/model/kuka_lwr_urdf.xacro"/>
+  
+  <!-- Include trunk model -->
+  <xacro:include filename="$(find trunk_description)/model/trunk.urdf.xacro"/>
+
+  <!-- Include gazebo kuka lwr -->
+  <xacro:include filename="$(find kuka_lwr_description)/model/kuka_lwr.gazebo.xacro"/>
+
+  <!-- Include gazebo trunk -->
+ <xacro:include filename="$(find trunk_description)/model/trunk.gazebo.xacro"/>
+  
+  <!-- Create Kuka LWR Right -->
+  <xacro:kuka_lwr parent="trunk_link" name="kuka_lwr_right">
+	<origin xyz="-0.17 0 1.45" rpy="0 ${pi/2.0} ${pi}"/>
+  </xacro:kuka_lwr>
+
+  <!-- Create Kuka LWR Left -->
+  <xacro:kuka_lwr parent="trunk_link" name="kuka_lwr_left">
+	<origin xyz="0.17 0 1.45" rpy="0 ${pi/2.0} 0"/>
+  </xacro:kuka_lwr>
+
+ <!-- Create Gazebo Kuka Right -->
+ <xacro:kuka_lwr_gazebo name="kuka_lwr_right" />
+
+ <!-- Create Gazebo Kuka Left -->
+ <xacro:kuka_lwr_gazebo name="kuka_lwr_left" />
+
+ <!-- Create Gazebo Trunk -->
+ <xacro:trunk_gazebo />
+
+</robot>

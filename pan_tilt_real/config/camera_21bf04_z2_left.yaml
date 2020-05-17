@@ -1,0 +1,5 @@
+# camera parameters of Imaging Source DFx21BF04-Z2 LEFT
+guid: 0007481201ccf880
+video_mode: 640x480_yuv422
+frame_id: camera_21BF04_Z2_left
+frame_rate: 15

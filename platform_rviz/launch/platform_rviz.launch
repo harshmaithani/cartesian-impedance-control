@@ -1,0 +1,56 @@
+<launch>
+    
+	<!-- set some ros tools -->
+	<arg name="use_pantilt" default="true"/>
+	<arg name="use_rviz" default="true"/>
+
+	<arg name="robot_name" default="platform_robot"/>
+	<arg name="robot_urdf_file" default="$(find platform_gazebo)/robot/$(arg robot_name).urdf.xacro"/>
+
+	<arg name="use_left_arm" default="true"/>
+	<arg name="use_right_arm" default="true"/>
+
+	
+	<param name="robot_description" command="$(find xacro)/xacro.py $(arg robot_urdf_file) use_pantilt:=$(arg use_pantilt)"/>
+	<param name="kuka_lwr_left/robot_description" command="$(find xacro)/xacro.py '$(find double_lwr_robot)/robot/kuka_lwr_left_robot.urdf.xacro'" />
+	<param name="kuka_lwr_right/robot_description" command="$(find xacro)/xacro.py '$(find double_lwr_robot)/robot/kuka_lwr_right_robot.urdf.xacro'" />
+
+
+	<group if="$(arg use_left_arm)">
+		<!-- namespace of left arm -->
+		<group ns="kuka_lwr_left">
+			<node name="robot_state_publisher_left" pkg="robot_state_publisher" type="robot_state_publisher" respawn="false" output="screen"/>
+			<node name="joint_state_publisher_left" pkg="joint_state_publisher" type="joint_state_publisher" respawn="false" output="screen"/>
+		</group>
+	</group>
+
+
+	<group if="$(arg use_right_arm)">
+		<!-- namespace of right arm -->
+		<group ns="kuka_lwr_right">
+			<node name="robot_state_publisher_right" pkg="robot_state_publisher" type="robot_state_publisher" respawn="false" output="screen"/>
+			<node name="joint_state_publisher_right" pkg="joint_state_publisher" type="joint_state_publisher" respawn="false" output="screen"/>
+		</group>
+	</group>
+
+
+	<group if="$(arg use_pantilt)">
+		<!-- pantilt needs ***************************************************************************************************************************************  -->
+
+		<param name="pantilt/robot_description" command="$(find xacro)/xacro.py '$(find pantilt_gazebo)/robot/pantilt_gazebo.urdf.xacro'" />
+
+
+		<!-- namespace pantilt -->
+
+		<node name="robot_state_publisher_pantilt" pkg="robot_state_publisher" type="robot_state_publisher" respawn="false" output="screen">
+				<remap from="/joint_states" to="/pantilt/joint_states" />
+		</node>
+		<!-- ***************************************************************************************************************************************************  -->
+	</group>
+
+	<group if="$(arg use_rviz)">
+		<node name="kuka_lwr_rviz" pkg="rviz" type="rviz" respawn="false" args="-d $(find platform_rviz)/config/config.rviz" output="screen"/>
+	</group>
+
+	
+</launch>

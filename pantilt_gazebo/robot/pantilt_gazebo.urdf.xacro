@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="pantilt_robot">
+
+	<!-- Include pan tilt model -->
+	<xacro:include filename="$(find pantilt_description)/model/pantilt_gazebo.urdf.xacro"/>
+
+	<link name="base_link"/>
+
+	<!-- using the models -->
+
+	<xacro:pantilt parent="base_link" name="pantilt" namespace="pantilt">
+		<origin xyz="0 0 1.695" rpy="0 0 0"/>
+	</xacro:pantilt>
+
+</robot>

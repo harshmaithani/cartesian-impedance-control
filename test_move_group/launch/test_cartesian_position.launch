@@ -1,0 +1,7 @@
+<launch>
+	<arg name="group_name" default="kuka_lwr_left"/>
+    <param name="test_group_name" type="str" value="$(arg group_name)" />
+	<group ns="$(arg group_name)">
+		<node name="test_move_cartesian_position_node" pkg="test_move_group" type="test_custom_cartesian_position" respawn="false" output="screen" />
+	</group>
+</launch>
