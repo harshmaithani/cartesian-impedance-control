@@ -1,10 +1,6 @@
 # cartesian-impedance-control
 Impedance Controllers for pHRI on KUKA LWR 4+ using Stanford FRI
 
-Institut Pascal
-MACCS Team (http://ip.univ-bpclermont.fr/index.php/fr/maccs)
-UMR6602 Clermont Ferrand
-
 In Real Mode
 ============
 In real mode, the controllers are launched in separate computers.
